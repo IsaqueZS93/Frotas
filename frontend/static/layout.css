@@ -1,0 +1,245 @@
+/* ==========================
+   GESTÃO DE FROTAS - LAYOUT CSS
+   Criado para um design profissional e bonito
+   ========================== */
+
+/* ---- Configuração Geral ---- */
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #f4f8ff; /* Azul claro suave */
+    color: #333;
+    margin: 0;
+    padding: 0;
+}
+
+/* ---- Navbar ---- */
+.navbar {
+    background: #004a99; /* Azul escuro */
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-brand {
+    color: white;
+    font-weight: bold;
+    font-size: 1.4rem;
+    text-decoration: none;
+}
+
+.navbar-menu {
+    display: flex;
+    gap: 15px;
+}
+
+.navbar-menu a {
+    color: white;
+    text-decoration: none;
+    font-weight: 500;
+    padding: 8px 15px;
+    border-radius: 5px;
+    transition: background 0.3s ease-in-out;
+}
+
+.navbar-menu a:hover {
+    background: #0056b3;
+}
+
+/* ---- Botões ---- */
+.button {
+    display: inline-block;
+    padding: 10px 15px;
+    font-size: 1rem;
+    font-weight: bold;
+    text-align: center;
+    text-decoration: none;
+    color: white;
+    background: #007bff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s ease-in-out;
+}
+
+.button:hover {
+    background: #0056b3;
+}
+
+.button-secondary {
+    background: #0056b3;
+}
+
+.button-secondary:hover {
+    background: #004080;
+}
+
+/* ---- Cards ---- */
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+/* ---- Tabelas ---- */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    margin-top: 10px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+th {
+    background: #004a99;
+    color: white;
+}
+
+tr:hover {
+    background: #e3f2fd;
+}
+
+/* ---- Inputs e Forms ---- */
+input, select, textarea {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #004a99;
+    border-radius: 5px;
+    font-size: 1rem;
+}
+
+input:focus, select:focus, textarea:focus {
+    border: 2px solid #007bff;
+    outline: none;
+    box-shadow: 0px 0px 8px rgba(0, 123, 255, 0.4);
+}
+
+/* ---- Rodapé ---- */
+.footer {
+    background: #004a99;
+    color: white;
+    text-align: center;
+    padding: 15px;
+    position: absolute;
+    width: 100%;
+    bottom: 0;
+}
+
+.footer a {
+    color: #66b2ff;
+    text-decoration: none;
+}
+
+.footer a:hover {
+    color: white;
+}
+
+/* ---- Painel de Dashboard ---- */
+.dashboard-container {
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* ---- Layout Responsivo ---- */
+@media (max-width: 768px) {
+    .navbar {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .navbar-menu {
+        flex-direction: column;
+        gap: 10px;
+    }
+}
+
+/* ---- Animações ---- */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+/* ==========================
+    GESTÃO DE FROTAS - LAYOUT CSS
+   ========================== */
+
+/* ---- Configuração Geral ---- */
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #f4f8ff;
+    color: #333;
+}
+
+/* ---- Títulos ---- */
+.title {
+    font-size: 28px;
+    font-weight: bold;
+    color: #004a99;
+    text-align: center;
+}
+
+/* ---- Formulário ---- */
+.form-container {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+/* ---- Botão ---- */
+.button {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.3s ease-in-out;
+}
+
+.button:hover {
+    background: #0056b3;
+}
+
+/* ---- Upload de imagens ---- */
+.subtitle {
+    font-size: 20px;
+    color: #004a99;
+    margin-top: 20px;
+}
