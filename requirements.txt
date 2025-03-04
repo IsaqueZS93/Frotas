@@ -8,3 +8,4 @@ python-dotenv
 langchain
 langchain-groq
 fpdf
+googleapiclient
