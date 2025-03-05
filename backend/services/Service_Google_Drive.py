@@ -60,35 +60,6 @@ def get_google_drive_service():
 
     st.error("❌ Nenhuma credencial válida encontrada.")
     raise Exception("Falha na autenticação do Google Drive.")
-🔹 Passo 2: Atualizarfleet_main_app.py
-Agora que corrigimos get_google_drive_service(), o erro st is not definedserá resolvido.
-Agora, precisamos testar a conexão novamente .
-
-📌 Em fleet_main_app.py, adicione esse código logo abaixo da depuração das credenciais :
-
-Pitão
-
-Copiar
-
-Editar
-# 🔹 Testando conexão com o Google Drive
-st.subheader("🔗 Testando Conexão com o Google Drive")
-try:
-    service = get_google_drive_service()
-    st.success("✅ Conexão com o Google Drive estabelecida com sucesso!")
-except Exception as e:
-    st.error(f"❌ Erro ao conectar ao Google Drive: {e}")
-
-# 🔹 Testando criação de pasta no Google Drive
-st.subheader("📂 Testando Criação de Pasta no Google Drive")
-try:
-    folder_id = create_folder("Teste_Pasta")
-    if folder_id:
-        st.success(f"📁 Pasta criada com sucesso! ID: {folder_id}")
-    else:
-        st.error("❌ Falha ao criar a pasta.")
-except Exception as e:
-    st.error(f"❌ Erro ao criar pasta no Google Drive: {e}")
 
 def create_folder(folder_name):
     """
