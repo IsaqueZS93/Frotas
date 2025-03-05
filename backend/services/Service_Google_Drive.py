@@ -22,37 +22,45 @@ def get_google_drive_service():
     """
     Autentica no Google Drive e retorna um serviço da API.
 
-    Prioriza as credenciais definidas em st.secrets["GOOGLE_SERVICE_ACCOUNT"] (conta de serviço).
-    Se não estiverem disponíveis, utiliza o fluxo OAuth 2.0 com armazenamento apenas em memória
-    (st.session_state), evitando o uso do arquivo token.pickle.
+    Prioriza:
+      1. Se st.secrets contém "GOOGLE_SERVICE_ACCOUNT", usa credenciais de conta de serviço.
+      2. Se st.secrets contém "web", usa o fluxo OAuth com client config fornecido.
+      3. Caso nenhum seja encontrado, lança exceção.
     
-    Retorna:
-        service (googleapiclient.discovery.Resource): Objeto autenticado do Google Drive.
+    Utiliza st.session_state para manter o token OAuth em memória.
     """
     creds = None
 
-    # Tenta usar as credenciais de conta de serviço dos segredos do Streamlit
+    # Tenta usar credenciais de conta de serviço
     try:
-        import streamlit as st
         if "GOOGLE_SERVICE_ACCOUNT" in st.secrets:
             service_account_info = st.secrets["GOOGLE_SERVICE_ACCOUNT"]
             creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
-            print("✅ Credenciais de conta de serviço carregadas dos segredos do Streamlit.")
+            st.write("✅ Credenciais de conta de serviço carregadas dos segredos.")
+            return build("drive", "v3", credentials=creds)
     except Exception as e:
-        print(f"⚠️ Erro ao carregar credenciais do st.secrets: {e}")
+        st.write(f"⚠️ Erro ao carregar credenciais do st.secrets para conta de serviço: {e}")
 
-    # Caso as credenciais de conta de serviço não estejam disponíveis, utiliza OAuth 2.0
-    if not creds:
-        import streamlit as st
-        if "creds" in st.session_state:
-            creds = st.session_state["creds"]
-        else:
-            print("🔑 Iniciando fluxo OAuth para autenticação no Google Drive...")
-            flow = InstalledAppFlow.from_client_secrets_file("backend/config/client_secret.json", SCOPES)
-            creds = flow.run_local_server(port=8080)
-            st.session_state["creds"] = creds  # Armazena em memória (sessão) ao invés de salvar em disco
+    # Se não houver conta de serviço, tenta usar OAuth com client config
+    try:
+        if "web" in st.secrets:
+            client_config = st.secrets["web"]
+            if "client_id" in client_config and "client_secret" in client_config:
+                client_config = {"web": client_config}
 
-    return build("drive", "v3", credentials=creds)
+            if "creds" in st.session_state:
+                creds = st.session_state["creds"]
+            else:
+                st.write("🔑 Iniciando fluxo OAuth para autenticação no Google Drive usando st.secrets...")
+                flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
+                creds = flow.run_local_server(port=8080)
+                st.session_state["creds"] = creds  # Mantém o token apenas em memória
+            return build("drive", "v3", credentials=creds)
+    except Exception as e:
+        st.write(f"⚠️ Erro ao carregar credenciais do st.secrets para OAuth: {e}")
+
+    st.write("❌ Nenhuma credencial do Google encontrada em st.secrets.")
+    raise Exception("Credenciais do Google não encontradas.")
 
 def create_folder(folder_name):
     """
