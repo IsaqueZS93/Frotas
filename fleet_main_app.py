@@ -16,17 +16,6 @@ from frontend.screens.Screen_Checklist_lists import checklist_list_screen
 from frontend.screens.Screen_Abastecimento_Create import abastecimento_create_screen
 from frontend.screens.Screen_Abastecimento_List_Edit import abastecimento_list_edit_screen
 from frontend.screens.Screen_Dash import screen_dash
-from frontend.screens.Screen_IA import screen_ia  # ✅ Importa a tela do chatbot IA
-
-# Configuração da página e ocultação do menu padrão do Streamlit
-st.set_page_config(page_title="Gestão de Frotas", layout="wide")
-
-hide_menu_style = """
-    <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    </style>
 """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
 
