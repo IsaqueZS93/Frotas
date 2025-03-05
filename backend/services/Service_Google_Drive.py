@@ -24,20 +24,18 @@ def get_google_drive_service():
     - Se não encontrar, solicita ao usuário que cole manualmente o JSON de autenticação.
     - Converte e valida o JSON antes de autenticar.
     """
-    st.subheader("🔗 Testando conexão com o Google Drive...")
     st.write("🔍 Tentando autenticação no Google Drive...")
 
     credentials_json = None
 
-    #  Primeiro, tenta pegar do `secrets.toml`
+    # 🔹 Primeiro, tenta pegar do `secrets.toml`
     if "GOOGLE_CREDENTIALS" in st.secrets:
         try:
-            st.write("✅ Credenciais carregadas. Convertendo JSON...")
             credentials_json = {
                 "type": st.secrets["GOOGLE_CREDENTIALS"]["type"],
                 "project_id": st.secrets["GOOGLE_CREDENTIALS"]["project_id"],
                 "private_key_id": st.secrets["GOOGLE_CREDENTIALS"]["private_key_id"],
-                "private_key": st.secrets["GOOGLE_CREDENTIALS"]["private_key"],
+                "private_key": st.secrets["GOOGLE_CREDENTIALS"]["private_key"].replace("\\n", "\n"),
                 "client_email": st.secrets["GOOGLE_CREDENTIALS"]["client_email"],
                 "client_id": st.secrets["GOOGLE_CREDENTIALS"]["client_id"],
                 "auth_uri": st.secrets["GOOGLE_CREDENTIALS"]["auth_uri"],
@@ -47,44 +45,35 @@ def get_google_drive_service():
                 "universe_domain": st.secrets["GOOGLE_CREDENTIALS"]["universe_domain"],
             }
         except Exception as e:
-            st.error(f"⚠️ Erro ao carregar credenciais do secrets.toml: {e}")
+            st.error("⚠️ Erro ao carregar credenciais do secrets.toml.")
 
-    #  Se não encontrou nos segredos, pede para o usuário fornecer manualmente
+    # 🔹 Se não encontrou nos segredos, pede para o usuário fornecer manualmente
     if not credentials_json:
-        st.warning("❌ Nenhuma credencial encontrada no secrets. Por favor, cole o JSON abaixo.")
         json_input = st.text_area("📥 Cole seu JSON de autenticação do Google Drive aqui:", height=250)
 
         if st.button("🔑 Autenticar"):
             try:
                 credentials_json = json.loads(json_input)
+                credentials_json["private_key"] = credentials_json["private_key"].replace("\\n", "\n")
                 st.success("✅ JSON válido! Prosseguindo com a autenticação.")
             except Exception as e:
-                st.error(f"❌ JSON inválido. Verifique o formato: {e}")
+                st.error("❌ JSON inválido. Verifique o formato.")
                 return None
 
-    # Se ainda não tiver credenciais, aborta
+    # 🔹 Se ainda não tiver credenciais, aborta
     if not credentials_json:
         st.error("❌ Nenhuma credencial válida encontrada. Autenticação abortada.")
         return None
 
-    #  Corrigir formatação da `private_key`
-    if "private_key" in credentials_json:
-        st.write("🔍 Corrigindo formatação da private_key...")
-        credentials_json["private_key"] = credentials_json["private_key"].replace("\\n", "\n")
-
-    # Exibir JSON formatado sem a `private_key`
-    json_safe = credentials_json.copy()
-    json_safe["private_key"] = "*** OCULTA ***"
-    st.json(json_safe)
-
-    #  Criar credenciais do Google Drive
+    # 🔹 Criar credenciais do Google Drive
     try:
         creds = Credentials.from_service_account_info(credentials_json, scopes=SCOPES)
         st.success("✅ Autenticado via Conta de Serviço com sucesso!")
         return build("drive", "v3", credentials=creds)
     except Exception as e:
-        st.error(f"❌ Erro ao autenticar no Google Drive: {e}")
+        st.error("❌ Erro ao autenticar no Google Drive.")
         return None
+
 
 
 def create_folder(folder_name):
