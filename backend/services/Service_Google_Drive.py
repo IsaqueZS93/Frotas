@@ -31,9 +31,9 @@ def get_google_drive_service():
     """
     Autentica no Google Drive e retorna um serviço da API.
     
-    - Recupera as credenciais do `st.secrets`
+    - Busca as credenciais do `st.secrets`
     - Reconstrói o JSON original antes de autenticar
-    - Reformata a `private_key` para corrigir problemas de padding
+    - Reformata manualmente a `private_key` para evitar erro de "Incorrect padding"
     """
     st.write("🔍 Tentando autenticação no Google Drive...")
 
@@ -42,21 +42,17 @@ def get_google_drive_service():
             st.write("✅ Credenciais carregadas. Reconstruindo JSON...")
 
             # 🔹 Recupera os dados do secrets e reestrutura para o formato JSON correto
-            service_account_info = {
-                "type": st.secrets["GOOGLE_SERVICE_ACCOUNT"]["type"],
-                "project_id": st.secrets["GOOGLE_SERVICE_ACCOUNT"]["project_id"],
-                "private_key_id": st.secrets["GOOGLE_SERVICE_ACCOUNT"]["private_key_id"],
-                "private_key": st.secrets["GOOGLE_SERVICE_ACCOUNT"]["private_key"].replace('\\n', '\n'),  # Corrigir quebras de linha
-                "client_email": st.secrets["GOOGLE_SERVICE_ACCOUNT"]["client_email"],
-                "client_id": st.secrets["GOOGLE_SERVICE_ACCOUNT"]["client_id"],
-                "auth_uri": st.secrets["GOOGLE_SERVICE_ACCOUNT"]["auth_uri"],
-                "token_uri": st.secrets["GOOGLE_SERVICE_ACCOUNT"]["token_uri"],
-                "auth_provider_x509_cert_url": st.secrets["GOOGLE_SERVICE_ACCOUNT"]["auth_provider_x509_cert_url"],
-                "client_x509_cert_url": st.secrets["GOOGLE_SERVICE_ACCOUNT"]["client_x509_cert_url"]
-            }
+            service_account_info = dict(st.secrets["GOOGLE_SERVICE_ACCOUNT"])
 
-            # Depuração: Exibir JSON reconstruído
-            st.json(service_account_info)
+            # 🔹 Restaurar quebras de linha removidas pelo Streamlit
+            if "private_key" in service_account_info:
+                st.write("🔍 Corrigindo formatação da private_key...")
+                service_account_info["private_key"] = service_account_info["private_key"].replace('\\n', '\n')
+
+            # Exibir JSON formatado (sem mostrar a private_key por segurança)
+            json_safe = service_account_info.copy()
+            json_safe["private_key"] = "*** OCULTA ***"
+            st.json(json_safe)
 
             # Criar credenciais do Google Drive
             creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
