@@ -1,7 +1,8 @@
 import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam adicionados corretamente
 import streamlit as st
 import time  # 🔹 Para controle do redirecionamento automático
-from backend.services.Service_Google_Drive import get_google_drive_service, create_folder  # 🔹 Importa o serviço do Google Drive
+import os
+from backend.services.Service_Google_Drive import get_google_drive_service, create_folder, upload_file_to_drive, download_file_from_drive  # 🔹 Importa o serviço do Google Drive
 from backend.database.db_fleet import create_database
 from frontend.screens.Screen_Login import login_screen
 from frontend.screens.Screen_User_Create import user_create_screen
@@ -27,6 +28,14 @@ hide_menu_style = """
     </style>
 """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
+
+# Definir nome do banco de dados
+DB_PATH = "backend/database/fleet_database.db"
+DRIVE_FOLDER_ID = "1TeLkfzLxKCMR060z5kd8uNOXev1qLPda"  # ID da pasta no Google Drive
+
+# Baixar o banco de dados do Google Drive ao iniciar a aplicação
+st.write("🔄 Restaurando banco de dados do Google Drive...")
+download_file_from_drive(DB_PATH, DRIVE_FOLDER_ID, "fleet_database.db")
 
 # Inicializa o banco de dados
 create_database()
@@ -115,3 +124,8 @@ else:
             st.rerun()
         else:
             st.warning("Você não tem permissão para acessar esta página.")
+
+# Fazer backup do banco de dados no Google Drive ao finalizar a execução
+time.sleep(3)  # Pequena espera para garantir que o banco seja atualizado antes do upload
+upload_file_to_drive(DB_PATH, DRIVE_FOLDER_ID)
+st.write("☁️ Backup do banco de dados enviado para o Google Drive!")
