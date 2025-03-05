@@ -9,6 +9,7 @@ from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from dotenv import load_dotenv
+from googleapiclient.errors import HttpError
 
 # Carregar variáveis de ambiente (útil para ambientes locais)
 load_dotenv()
@@ -74,22 +75,38 @@ def get_google_drive_service():
         st.error("❌ Erro ao autenticar no Google Drive.")
         return None
 
-# ID da pasta no Google Drive onde o banco será salvo
-FLEETBD_FOLDER_ID = "1TeLkfzLxKCMR060z5kd8uNOXev1qLPda"
-DB_FILE_PATH = "backend/database/fleet_database.db"
+# Configurações do Banco de Dados
+FLEETBD_FOLDER_ID = "1TeLkfzLxKCMR060z5kd8uNOXev1qLPda"  # ID correto da pasta no Google Drive
+DB_FILE_PATH = "backend/database/fleet_management.db"  # ✅ Nome corrigido
+DB_FILE_NAME = "fleet_management.db"  # ✅ Nome correto no Google Drive
+
+def get_google_drive_service():
+    """ Autentica e retorna um serviço do Google Drive """
+    try:
+        credentials_json = st.secrets["GOOGLE_CREDENTIALS"]
+        creds = Credentials.from_service_account_info(credentials_json, scopes=SCOPES)
+        return build("drive", "v3", credentials=creds)
+    except Exception as e:
+        st.error(f"❌ Erro ao autenticar no Google Drive: {e}")
+        return None
 
 def upload_database():
-    """Faz upload do banco de dados para o Google Drive."""
+    """ Envia ou atualiza o banco de dados no Google Drive """
     try:
         service = get_google_drive_service()
+        if not service:
+            return
+
         file_metadata = {
-            "name": "fleet_database.db",
+            "name": DB_FILE_NAME,
             "parents": [FLEETBD_FOLDER_ID]
         }
 
         media = MediaFileUpload(DB_FILE_PATH, resumable=True)
+
+        # Verifica se o arquivo já existe no Google Drive
         existing_files = service.files().list(
-            q=f"name='fleet_database.db' and '{FLEETBD_FOLDER_ID}' in parents",
+            q=f"name='{DB_FILE_NAME}' and '{FLEETBD_FOLDER_ID}' in parents",
             fields="files(id)"
         ).execute().get("files", [])
 
@@ -105,11 +122,14 @@ def upload_database():
         st.error(f"❌ Erro ao fazer upload do banco de dados: {e}")
 
 def download_database():
-    """Baixa o banco de dados do Google Drive e substitui o local."""
+    """ Baixa o banco de dados do Google Drive e substitui o local """
     try:
         service = get_google_drive_service()
+        if not service:
+            return
+
         existing_files = service.files().list(
-            q=f"name='fleet_database.db' and '{FLEETBD_FOLDER_ID}' in parents",
+            q=f"name='{DB_FILE_NAME}' and '{FLEETBD_FOLDER_ID}' in parents",
             fields="files(id)"
         ).execute().get("files", [])
 
@@ -130,7 +150,6 @@ def download_database():
 
     except HttpError as e:
         st.error(f"❌ Erro ao baixar o banco de dados: {e}")
-
 
 
 def create_folder(folder_name):
