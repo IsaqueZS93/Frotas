@@ -15,7 +15,7 @@ load_dotenv()
 # Definir escopo de acesso (permite gerenciar arquivos no Google Drive)
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
-# Caminho do arquivo token (usado anteriormente em autenticação OAuth, mas não será utilizado na nuvem)
+# Caminho do arquivo token (usado em autenticação OAuth)
 TOKEN_PATH = "backend/config/token.pickle"
 
 def get_google_drive_service():
@@ -23,8 +23,7 @@ def get_google_drive_service():
     Autentica no Google Drive e retorna um serviço da API.
 
     Prioriza as credenciais definidas em st.secrets["GOOGLE_SERVICE_ACCOUNT"] (conta de serviço).
-    Se não estiverem disponíveis, utiliza o fluxo OAuth 2.0 com armazenamento apenas em memória
-    (st.session_state), evitando o uso do arquivo token.pickle.
+    Se não estiverem disponíveis, utiliza o fluxo OAuth 2.0 com armazenamento em token.pickle.
     
     Retorna:
         service (googleapiclient.discovery.Resource): Objeto autenticado do Google Drive.
@@ -43,14 +42,21 @@ def get_google_drive_service():
 
     # Caso as credenciais de conta de serviço não estejam disponíveis, utiliza OAuth 2.0
     if not creds:
-        import streamlit as st
-        if "creds" in st.session_state:
-            creds = st.session_state["creds"]
-        else:
-            print("🔑 Iniciando fluxo OAuth para autenticação no Google Drive...")
-            flow = InstalledAppFlow.from_client_secrets_file("backend/config/client_secret.json", SCOPES)
-            creds = flow.run_local_server(port=8080)
-            st.session_state["creds"] = creds  # Armazena em memória (sessão) ao invés de salvar em disco
+        if os.path.exists(TOKEN_PATH):
+            with open(TOKEN_PATH, 'rb') as token:
+                creds = pickle.load(token)
+
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                print("🔑 Iniciando fluxo OAuth para autenticação no Google Drive...")
+                flow = InstalledAppFlow.from_client_secrets_file("backend/config/client_secret.json", SCOPES)
+                creds = flow.run_local_server(port=8080)
+
+            # Salva o token para uso futuro (observação: em ambientes efêmeros o token pode ser perdido)
+            with open(TOKEN_PATH, 'wb') as token:
+                pickle.dump(creds, token)
 
     return build("drive", "v3", credentials=creds)
 
