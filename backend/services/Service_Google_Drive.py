@@ -79,6 +79,38 @@ FLEETBD_FOLDER_ID = "1TeLkfzLxKCMR060z5kd8uNOXev1qLPda"  # ID correto da pasta n
 DB_FILE_PATH = "backend/database/fleet_management.db"  # ✅ Nome corrigido
 DB_FILE_NAME = "fleet_management.db"  # ✅ Nome correto no Google Drive
 
+def upload_database():
+    """ Envia ou atualiza o banco de dados no Google Drive """
+    
+    # Verifica se o banco de dados existe antes do upload
+    if not os.path.exists(DB_FILE_PATH):
+        st.error("❌ Erro: O banco de dados não foi encontrado localmente. Nenhum upload foi realizado.")
+        return
+
+    service = get_google_drive_service()
+    if not service:
+        return
+
+    file_metadata = {
+        "name": DB_FILE_NAME,
+        "parents": [FLEETBD_FOLDER_ID]
+    }
+
+    media = MediaFileUpload(DB_FILE_PATH, resumable=True)
+
+    existing_files = service.files().list(
+        q=f"name='{DB_FILE_NAME}' and '{FLEETBD_FOLDER_ID}' in parents",
+        fields="files(id)"
+    ).execute().get("files", [])
+
+    if existing_files:
+        file_id = existing_files[0]["id"]
+        service.files().update(fileId=file_id, media_body=media).execute()
+        st.success("✅ Banco de dados atualizado no Google Drive!")
+    else:
+        service.files().create(body=file_metadata, media_body=media).execute()
+        st.success("✅ Banco de dados salvo no Google Drive pela primeira vez!")
+
 def download_database():
     """ Baixa o banco de dados do Google Drive e substitui o local """
     service = get_google_drive_service()
@@ -103,33 +135,7 @@ def download_database():
         while not done:
             _, done = downloader.next_chunk()
 
-    st.success("✅ Banco de dados atualizado a partir do Google Drive!")
-
-def upload_database():
-    """ Envia ou atualiza o banco de dados no Google Drive """
-    service = get_google_drive_service()
-    if not service:
-        return
-
-    file_metadata = {
-        "name": DB_FILE_NAME,
-        "parents": [FLEETBD_FOLDER_ID]
-    }
-
-    media = MediaFileUpload(DB_FILE_PATH, resumable=True)
-
-    existing_files = service.files().list(
-        q=f"name='{DB_FILE_NAME}' and '{FLEETBD_FOLDER_ID}' in parents",
-        fields="files(id)"
-    ).execute().get("files", [])
-
-    if existing_files:
-        file_id = existing_files[0]["id"]
-        service.files().update(fileId=file_id, media_body=media).execute()
-    else:
-        service.files().create(body=file_metadata, media_body=media).execute()
-    
-    st.success("✅ Banco de dados salvo no Google Drive!")
+    st.success("✅ Banco de dados restaurado do Google Drive!")
 
 def create_folder(folder_name):
     """
