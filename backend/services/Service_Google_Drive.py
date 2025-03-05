@@ -19,33 +19,44 @@ SCOPES = ['https://www.googleapis.com/auth/drive.file']
 # Caminho do arquivo token (usado anteriormente em autenticação OAuth, mas não será utilizado na nuvem)
 TOKEN_PATH = "backend/config/token.pickle"
 
+import os
+import json
+import streamlit as st
+from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
+
+SCOPES = ['https://www.googleapis.com/auth/drive.file']
+
 def get_google_drive_service():
     """
     Autentica no Google Drive e retorna um serviço da API.
-    - Apenas usa a conta de serviço de `st.secrets["GOOGLE_SERVICE_ACCOUNT"]`
-    - Reformata manualmente a `private_key` para evitar erro de "Incorrect padding"
+    
+    - Recupera as credenciais do `st.secrets`
+    - Reconstrói o JSON original antes de autenticar
+    - Reformata a `private_key` para corrigir problemas de padding
     """
     st.write("🔍 Tentando autenticação no Google Drive...")
 
     if "GOOGLE_SERVICE_ACCOUNT" in st.secrets:
         try:
-            st.write("✅ Credenciais carregadas. Testando formatação...")
-            service_account_info = st.secrets["GOOGLE_SERVICE_ACCOUNT"]
+            st.write("✅ Credenciais carregadas. Reconstruindo JSON...")
 
-            # 🔹 Reformatar manualmente a private_key para evitar padding incorreto
-            if "private_key" in service_account_info:
-                st.write("🔍 Verificando private_key...")
+            # 🔹 Recupera os dados do secrets e reestrutura para o formato JSON correto
+            service_account_info = {
+                "type": st.secrets["GOOGLE_SERVICE_ACCOUNT"]["type"],
+                "project_id": st.secrets["GOOGLE_SERVICE_ACCOUNT"]["project_id"],
+                "private_key_id": st.secrets["GOOGLE_SERVICE_ACCOUNT"]["private_key_id"],
+                "private_key": st.secrets["GOOGLE_SERVICE_ACCOUNT"]["private_key"].replace('\\n', '\n'),  # Corrigir quebras de linha
+                "client_email": st.secrets["GOOGLE_SERVICE_ACCOUNT"]["client_email"],
+                "client_id": st.secrets["GOOGLE_SERVICE_ACCOUNT"]["client_id"],
+                "auth_uri": st.secrets["GOOGLE_SERVICE_ACCOUNT"]["auth_uri"],
+                "token_uri": st.secrets["GOOGLE_SERVICE_ACCOUNT"]["token_uri"],
+                "auth_provider_x509_cert_url": st.secrets["GOOGLE_SERVICE_ACCOUNT"]["auth_provider_x509_cert_url"],
+                "client_x509_cert_url": st.secrets["GOOGLE_SERVICE_ACCOUNT"]["client_x509_cert_url"]
+            }
 
-                # Restaurar quebras de linha removidas pelo Streamlit
-                private_key = service_account_info["private_key"].replace('\\n', '\n')
-
-                if "-----BEGIN PRIVATE KEY-----" in private_key and "-----END PRIVATE KEY-----" in private_key:
-                    st.success("✅ private_key formatada corretamente!")
-                else:
-                    st.error("❌ Erro na formatação da private_key!")
-
-                # Aplicar a private_key corrigida antes de passar para autenticação
-                service_account_info["private_key"] = private_key  
+            # Depuração: Exibir JSON reconstruído
+            st.json(service_account_info)
 
             # Criar credenciais do Google Drive
             creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
