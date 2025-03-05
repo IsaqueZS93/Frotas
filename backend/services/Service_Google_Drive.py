@@ -16,17 +16,6 @@ load_dotenv()
 # Definir escopo de acesso (permite gerenciar arquivos no Google Drive)
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
-# Caminho do arquivo token (usado anteriormente em autenticação OAuth, mas não será utilizado na nuvem)
-TOKEN_PATH = "backend/config/token.pickle"
-
-import os
-import json
-import streamlit as st
-from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
-
-SCOPES = ['https://www.googleapis.com/auth/drive.file']
-
 def get_google_drive_service():
     """
     Autentica no Google Drive e retorna um serviço da API.
@@ -35,19 +24,32 @@ def get_google_drive_service():
     - Se não encontrar, solicita ao usuário que cole manualmente o JSON de autenticação.
     - Converte e valida o JSON antes de autenticar.
     """
+    st.subheader("🔗 Testando conexão com o Google Drive...")
     st.write("🔍 Tentando autenticação no Google Drive...")
 
     credentials_json = None
 
-    # 🔹 Primeiro, tenta pegar do `secrets.toml`
+    #  Primeiro, tenta pegar do `secrets.toml`
     if "GOOGLE_CREDENTIALS" in st.secrets:
         try:
             st.write("✅ Credenciais carregadas. Convertendo JSON...")
-            credentials_json = json.loads(st.secrets["GOOGLE_CREDENTIALS"]["json"])
+            credentials_json = {
+                "type": st.secrets["GOOGLE_CREDENTIALS"]["type"],
+                "project_id": st.secrets["GOOGLE_CREDENTIALS"]["project_id"],
+                "private_key_id": st.secrets["GOOGLE_CREDENTIALS"]["private_key_id"],
+                "private_key": st.secrets["GOOGLE_CREDENTIALS"]["private_key"],
+                "client_email": st.secrets["GOOGLE_CREDENTIALS"]["client_email"],
+                "client_id": st.secrets["GOOGLE_CREDENTIALS"]["client_id"],
+                "auth_uri": st.secrets["GOOGLE_CREDENTIALS"]["auth_uri"],
+                "token_uri": st.secrets["GOOGLE_CREDENTIALS"]["token_uri"],
+                "auth_provider_x509_cert_url": st.secrets["GOOGLE_CREDENTIALS"]["auth_provider_x509_cert_url"],
+                "client_x509_cert_url": st.secrets["GOOGLE_CREDENTIALS"]["client_x509_cert_url"],
+                "universe_domain": st.secrets["GOOGLE_CREDENTIALS"]["universe_domain"],
+            }
         except Exception as e:
             st.error(f"⚠️ Erro ao carregar credenciais do secrets.toml: {e}")
 
-    # 🔹 Se não encontrou nos segredos, pede para o usuário fornecer manualmente
+    #  Se não encontrou nos segredos, pede para o usuário fornecer manualmente
     if not credentials_json:
         st.warning("❌ Nenhuma credencial encontrada no secrets. Por favor, cole o JSON abaixo.")
         json_input = st.text_area("📥 Cole seu JSON de autenticação do Google Drive aqui:", height=250)
@@ -60,22 +62,22 @@ def get_google_drive_service():
                 st.error(f"❌ JSON inválido. Verifique o formato: {e}")
                 return None
 
-    # 🔹 Se ainda não tiver credenciais, aborta
+    # Se ainda não tiver credenciais, aborta
     if not credentials_json:
         st.error("❌ Nenhuma credencial válida encontrada. Autenticação abortada.")
         return None
 
-    # 🔹 Corrigir formatação da `private_key`
+    #  Corrigir formatação da `private_key`
     if "private_key" in credentials_json:
         st.write("🔍 Corrigindo formatação da private_key...")
         credentials_json["private_key"] = credentials_json["private_key"].replace("\\n", "\n")
 
-    # 🔹 Exibir JSON formatado sem a `private_key`
+    # Exibir JSON formatado sem a `private_key`
     json_safe = credentials_json.copy()
     json_safe["private_key"] = "*** OCULTA ***"
     st.json(json_safe)
 
-    # 🔹 Criar credenciais do Google Drive
+    #  Criar credenciais do Google Drive
     try:
         creds = Credentials.from_service_account_info(credentials_json, scopes=SCOPES)
         st.success("✅ Autenticado via Conta de Serviço com sucesso!")
