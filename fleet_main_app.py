@@ -50,12 +50,12 @@ else:
         st.title("🚛 Sistema de Gestão de Frotas!")
         st.markdown("""
         ### Como navegar no sistema?
-        - **Menu lateral**: Utilize o menu lateral para acessar todas as funcionalidades do sistema.
-        - **Cadastrar e Gerenciar**: Adicione e edite usuários, veículos e abastecimentos.
-        - **Checklists**: Registre e acompanhe os checklists de veículos.
-        - **Dashboards**: Visualize estatísticas sobre a frota.
-        - **IA Inteligente**: Utilize a IA para obter insights sobre os dados da frota.
-        - **Logout**: Para sair, basta clicar na opção *Logout* no menu lateral.
+            - **Menu lateral**: Utilize o menu lateral para acessar todas as funcionalidades do sistema.
+            - **Cadastrar e Gerenciar**: Adicione e edite usuários, veículos e abastecimentos.
+            - **Checklists**: Registre e acompanhe os checklists de veículos.
+            - **Dashboards**: Visualize estatísticas sobre a frota.
+            - **IA Inteligente**: Utilize a IA para obter insights sobre os dados da frota.
+            - **Logout**: Para sair, basta clicar na opção *Logout* no menu lateral.
         """)
 
         st.success("✅ Você está autenticado. Selecione uma opção no menu lateral para começar!")
