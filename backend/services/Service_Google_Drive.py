@@ -79,6 +79,48 @@ FLEETBD_FOLDER_ID = "1TeLkfzLxKCMR060z5kd8uNOXev1qLPda"  # ID correto da pasta n
 DB_FILE_PATH = "backend/database/fleet_management.db"  # ✅ Nome corrigido
 DB_FILE_NAME = "fleet_management.db"  # ✅ Nome correto no Google Drive
 
+
+def load_database_into_memory():
+    """Carrega o banco de dados diretamente do Google Drive para a memória."""
+    service = get_google_drive_service()
+    if not service:
+        return None
+
+    st.write("🔄 Buscando banco de dados no Google Drive...")
+
+    existing_files = service.files().list(
+        q=f"name='{DB_FILE_NAME}' and '{FLEETBD_FOLDER_ID}' in parents",
+        fields="files(id)"
+    ).execute().get("files", [])
+
+    if not existing_files:
+        st.error("❌ O banco de dados não foi encontrado no Google Drive!")
+        return None
+
+    file_id = existing_files[0]["id"]
+    request = service.files().get_media(fileId=file_id)
+
+    file_stream = io.BytesIO()
+    downloader = MediaIoBaseDownload(file_stream, request)
+    done = False
+    while not done:
+        _, done = downloader.next_chunk()
+
+    file_stream.seek(0)  # Retorna ao início do stream
+
+    # Conecta ao banco de dados diretamente da memória
+    conn = sqlite3.connect(":memory:")  # Criar um banco SQLite temporário na RAM
+    with conn:
+        with open("temp_db.sqlite", "wb") as temp_db:
+            temp_db.write(file_stream.read())  # Salva temporariamente para conexão
+
+        temp_conn = sqlite3.connect("temp_db.sqlite")
+        temp_conn.backup(conn)  # Copia os dados para o banco na memória
+        temp_conn.close()
+    
+    st.success("✅ Banco de dados carregado da nuvem para a memória!")
+    return conn
+
 def upload_database():
     """ Envia ou atualiza o banco de dados no Google Drive """
     
