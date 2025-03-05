@@ -2,6 +2,7 @@ import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam adic
 import streamlit as st
 import time  # 🔹 Para controle do redirecionamento automático
 import os
+from googleapiclient.errors import HttpError  # 🔹 Importa erro do Google API
 from backend.services.Service_Google_Drive import get_google_drive_service, create_folder, upload_database, download_database  # 🔹 Importa o serviço do Google Drive
 from backend.database.db_fleet import create_database
 from frontend.screens.Screen_Login import login_screen
@@ -33,8 +34,12 @@ st.markdown(hide_menu_style, unsafe_allow_html=True)
 DB_PATH = "backend/database/fleet_database.db"
 DRIVE_FOLDER_ID = "1TeLkfzLxKCMR060z5kd8uNOXev1qLPda"  # ID da pasta no Google Drive
 
-# Baixar o banco de dados do Google Drive ao iniciar a aplicação
-download_database()
+# Verificar se o banco de dados existe localmente antes de baixar
+if not os.path.exists(DB_PATH):
+    st.write("🔄 Restaurando banco de dados do Google Drive...")
+    download_database()
+else:
+    st.write("✅ Banco de dados local encontrado.")
 
 # Inicializa o banco de dados
 create_database()
