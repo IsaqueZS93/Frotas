@@ -23,42 +23,23 @@ def get_google_drive_service():
     """
     Autentica no Google Drive e retorna um serviço da API.
 
-    - Prioriza a conta de serviço definida em `st.secrets["GOOGLE_SERVICE_ACCOUNT"]`
-    - Se não estiver disponível, usa o fluxo OAuth 2.0 com `st.secrets["web"]`
-    - Retorna um serviço autenticado do Google Drive
+    - Apenas utiliza a conta de serviço definida em `st.secrets["GOOGLE_SERVICE_ACCOUNT"]`
+    - Remove a autenticação OAuth, pois não é suportada no Streamlit Cloud.
     """
     st.write("🔍 Tentando autenticação no Google Drive...")
 
-    creds = None
-
-    # **1️⃣ Tenta usar credenciais da conta de serviço**
-    try:
-        if "GOOGLE_SERVICE_ACCOUNT" in st.secrets:
+    if "GOOGLE_SERVICE_ACCOUNT" in st.secrets:
+        try:
             service_account_info = st.secrets["GOOGLE_SERVICE_ACCOUNT"]
             creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
             st.success("✅ Autenticado via Conta de Serviço.")
             return build("drive", "v3", credentials=creds)
-    except Exception as e:
-        st.error(f"⚠️ Erro ao carregar credenciais de conta de serviço: {e}")
+        except Exception as e:
+            st.error(f"⚠️ Erro ao carregar credenciais de conta de serviço: {e}")
+    else:
+        st.error("❌ Conta de serviço NÃO encontrada em `st.secrets`.")
 
-    # **2️⃣ Se falhar, tenta OAuth 2.0**
-    try:
-        if "web" in st.secrets:
-            client_config = {"web": st.secrets["web"]}
-
-            if "creds" in st.session_state:
-                creds = st.session_state["creds"]
-            else:
-                st.write("🔑 Iniciando fluxo OAuth para autenticação...")
-                flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
-                creds = flow.run_local_server(port=8080)
-                st.session_state["creds"] = creds  # Armazena na sessão
-
-            return build("drive", "v3", credentials=creds)
-    except Exception as e:
-        st.error(f"❌ Erro ao autenticar via OAuth: {e}")
-
-    st.error("❌ Nenhuma credencial válida encontrada.")
+    st.error("❌ Nenhuma credencial válida encontrada. Verifique `secrets.toml`.")
     raise Exception("Falha na autenticação do Google Drive.")
 
 def create_folder(folder_name):
