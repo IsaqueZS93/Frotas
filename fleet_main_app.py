@@ -16,6 +16,17 @@ from frontend.screens.Screen_Checklist_lists import checklist_list_screen
 from frontend.screens.Screen_Abastecimento_Create import abastecimento_create_screen
 from frontend.screens.Screen_Abastecimento_List_Edit import abastecimento_list_edit_screen
 from frontend.screens.Screen_Dash import screen_dash
+from frontend.screens.Screen_IA import screen_ia  # ✅ Importa a tela do chatbot IA
+
+# Configuração da página e ocultação do menu padrão do Streamlit
+st.set_page_config(page_title="Gestão de Frotas", layout="wide")
+
+hide_menu_style = """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    </style>
 """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
 
@@ -50,12 +61,12 @@ else:
         st.title("🚛 Sistema de Gestão de Frotas!")
         st.markdown("""
         ### Como navegar no sistema?
-            - **Menu lateral**: Utilize o menu lateral para acessar todas as funcionalidades do sistema.
-            - **Cadastrar e Gerenciar**: Adicione e edite usuários, veículos e abastecimentos.
-            - **Checklists**: Registre e acompanhe os checklists de veículos.
-            - **Dashboards**: Visualize estatísticas sobre a frota.
-            - **IA Inteligente**: Utilize a IA para obter insights sobre os dados da frota.
-            - **Logout**: Para sair, basta clicar na opção *Logout* no menu lateral.
+        - **Menu lateral**: Utilize o menu lateral para acessar todas as funcionalidades do sistema.
+        - **Cadastrar e Gerenciar**: Adicione e edite usuários, veículos e abastecimentos.
+        - **Checklists**: Registre e acompanhe os checklists de veículos.
+        - **Dashboards**: Visualize estatísticas sobre a frota.
+        - **IA Inteligente**: Utilize a IA para obter insights sobre os dados da frota.
+        - **Logout**: Para sair, basta clicar na opção *Logout* no menu lateral.
         """)
 
         st.success("✅ Você está autenticado. Selecione uma opção no menu lateral para começar!")
@@ -108,16 +119,15 @@ else:
         elif menu_option == "Chatbot IA 🤖":
             screen_ia()  # Chama a tela do chatbot IA
         elif menu_option == "Logout":
-            # Botão de logout: Reseta sessão e recarrega a página
             st.session_state["authenticated"] = False
             st.session_state["user_id"] = None
             st.session_state["user_type"] = None
-            st.session_state["show_welcome"] = True  # Resetar para exibir boas-vindas na próxima vez
+            st.session_state["show_welcome"] = True
             st.success("Você saiu do sistema. Redirecionando para a tela de login... 🔄")
             st.rerun()
         else:
             st.warning("Você não tem permissão para acessar esta página.")
 
 # Fazer backup do banco de dados no Google Drive ao finalizar a execução
-time.sleep(3)  # Pequena espera para garantir que o banco seja atualizado antes do upload
+time.sleep(3)
 upload_database()
