@@ -30,32 +30,32 @@ SCOPES = ['https://www.googleapis.com/auth/drive.file']
 def get_google_drive_service():
     """
     Autentica no Google Drive e retorna um serviço da API.
-    
-    - Busca as credenciais do `st.secrets`
-    - Reconstrói o JSON original antes de autenticar
-    - Reformata manualmente a `private_key` para evitar erro de "Incorrect padding"
+
+    - Busca as credenciais unificadas de `st.secrets["GOOGLE_CREDENTIALS"]`
+    - Converte para JSON corretamente
+    - Reformata a `private_key` para evitar erro de "Incorrect padding"
     """
     st.write("🔍 Tentando autenticação no Google Drive...")
 
-    if "GOOGLE_SERVICE_ACCOUNT" in st.secrets:
+    if "GOOGLE_CREDENTIALS" in st.secrets:
         try:
-            st.write("✅ Credenciais carregadas. Reconstruindo JSON...")
+            st.write("✅ Credenciais carregadas. Convertendo JSON...")
 
-            # 🔹 Recupera os dados do secrets e reestrutura para o formato JSON correto
-            service_account_info = dict(st.secrets["GOOGLE_SERVICE_ACCOUNT"])
+            # 🔹 Pega o JSON do TOML e converte para dicionário
+            credentials_json = json.loads(st.secrets["GOOGLE_CREDENTIALS"]["json"])
 
-            # 🔹 Restaurar quebras de linha removidas pelo Streamlit
-            if "private_key" in service_account_info:
+            # 🔹 Corrigir formatação da `private_key`
+            if "private_key" in credentials_json:
                 st.write("🔍 Corrigindo formatação da private_key...")
-                service_account_info["private_key"] = service_account_info["private_key"].replace('\\n', '\n')
+                credentials_json["private_key"] = credentials_json["private_key"].replace('\\n', '\n')
 
             # Exibir JSON formatado (sem mostrar a private_key por segurança)
-            json_safe = service_account_info.copy()
+            json_safe = credentials_json.copy()
             json_safe["private_key"] = "*** OCULTA ***"
             st.json(json_safe)
 
             # Criar credenciais do Google Drive
-            creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
+            creds = Credentials.from_service_account_info(credentials_json, scopes=SCOPES)
             st.success("✅ Autenticado via Conta de Serviço.")
             return build("drive", "v3", credentials=creds)
 
