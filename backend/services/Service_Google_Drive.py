@@ -30,12 +30,26 @@ def get_google_drive_service():
 
     if "GOOGLE_SERVICE_ACCOUNT" in st.secrets:
         try:
+            st.write("✅ Credenciais carregadas. Testando formatação...")
             service_account_info = st.secrets["GOOGLE_SERVICE_ACCOUNT"]
+
+            # Depuração: Verificar se a chave privada tem quebras de linha corretas
+            if "private_key" in service_account_info:
+                st.write("🔍 Verificando private_key...")
+                if "-----BEGIN PRIVATE KEY-----" in service_account_info["private_key"] and \
+                   "-----END PRIVATE KEY-----" in service_account_info["private_key"]:
+                    st.success("✅ private_key formatada corretamente!")
+                else:
+                    st.error("❌ Erro na formatação da private_key!")
+
+            # Criar credenciais e autenticar serviço
             creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
             st.success("✅ Autenticado via Conta de Serviço.")
             return build("drive", "v3", credentials=creds)
+
         except Exception as e:
             st.error(f"⚠️ Erro ao carregar credenciais de conta de serviço: {e}")
+
     else:
         st.error("❌ Conta de serviço NÃO encontrada em `st.secrets`.")
 
