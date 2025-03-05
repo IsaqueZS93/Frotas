@@ -1,5 +1,6 @@
 import os
 import pickle
+import streamlit as st
 import io
 import json
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -22,45 +23,72 @@ def get_google_drive_service():
     """
     Autentica no Google Drive e retorna um serviço da API.
 
-    Prioriza:
-      1. Se st.secrets contém "GOOGLE_SERVICE_ACCOUNT", usa credenciais de conta de serviço.
-      2. Se st.secrets contém "web", usa o fluxo OAuth com client config fornecido.
-      3. Caso nenhum seja encontrado, lança exceção.
-    
-    Utiliza st.session_state para manter o token OAuth em memória.
+    - Prioriza a conta de serviço definida em `st.secrets["GOOGLE_SERVICE_ACCOUNT"]`
+    - Se não estiver disponível, usa o fluxo OAuth 2.0 com `st.secrets["web"]`
+    - Retorna um serviço autenticado do Google Drive
     """
+    st.write("🔍 Tentando autenticação no Google Drive...")
+
     creds = None
 
-    # Tenta usar credenciais de conta de serviço
+    # **1️⃣ Tenta usar credenciais da conta de serviço**
     try:
         if "GOOGLE_SERVICE_ACCOUNT" in st.secrets:
             service_account_info = st.secrets["GOOGLE_SERVICE_ACCOUNT"]
             creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
-            st.write("✅ Credenciais de conta de serviço carregadas dos segredos.")
+            st.success("✅ Autenticado via Conta de Serviço.")
             return build("drive", "v3", credentials=creds)
     except Exception as e:
-        st.write(f"⚠️ Erro ao carregar credenciais do st.secrets para conta de serviço: {e}")
+        st.error(f"⚠️ Erro ao carregar credenciais de conta de serviço: {e}")
 
-    # Se não houver conta de serviço, tenta usar OAuth com client config
+    # **2️⃣ Se falhar, tenta OAuth 2.0**
     try:
         if "web" in st.secrets:
-            client_config = st.secrets["web"]
-            if "client_id" in client_config and "client_secret" in client_config:
-                client_config = {"web": client_config}
+            client_config = {"web": st.secrets["web"]}
 
             if "creds" in st.session_state:
                 creds = st.session_state["creds"]
             else:
-                st.write("🔑 Iniciando fluxo OAuth para autenticação no Google Drive usando st.secrets...")
+                st.write("🔑 Iniciando fluxo OAuth para autenticação...")
                 flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
                 creds = flow.run_local_server(port=8080)
-                st.session_state["creds"] = creds  # Mantém o token apenas em memória
+                st.session_state["creds"] = creds  # Armazena na sessão
+
             return build("drive", "v3", credentials=creds)
     except Exception as e:
-        st.write(f"⚠️ Erro ao carregar credenciais do st.secrets para OAuth: {e}")
+        st.error(f"❌ Erro ao autenticar via OAuth: {e}")
 
-    st.write("❌ Nenhuma credencial do Google encontrada em st.secrets.")
-    raise Exception("Credenciais do Google não encontradas.")
+    st.error("❌ Nenhuma credencial válida encontrada.")
+    raise Exception("Falha na autenticação do Google Drive.")
+🔹 Passo 2: Atualizarfleet_main_app.py
+Agora que corrigimos get_google_drive_service(), o erro st is not definedserá resolvido.
+Agora, precisamos testar a conexão novamente .
+
+📌 Em fleet_main_app.py, adicione esse código logo abaixo da depuração das credenciais :
+
+Pitão
+
+Copiar
+
+Editar
+# 🔹 Testando conexão com o Google Drive
+st.subheader("🔗 Testando Conexão com o Google Drive")
+try:
+    service = get_google_drive_service()
+    st.success("✅ Conexão com o Google Drive estabelecida com sucesso!")
+except Exception as e:
+    st.error(f"❌ Erro ao conectar ao Google Drive: {e}")
+
+# 🔹 Testando criação de pasta no Google Drive
+st.subheader("📂 Testando Criação de Pasta no Google Drive")
+try:
+    folder_id = create_folder("Teste_Pasta")
+    if folder_id:
+        st.success(f"📁 Pasta criada com sucesso! ID: {folder_id}")
+    else:
+        st.error("❌ Falha ao criar a pasta.")
+except Exception as e:
+    st.error(f"❌ Erro ao criar pasta no Google Drive: {e}")
 
 def create_folder(folder_name):
     """
