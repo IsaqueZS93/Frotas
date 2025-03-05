@@ -19,46 +19,71 @@ SCOPES = ['https://www.googleapis.com/auth/drive.file']
 # Caminho do arquivo token (usado anteriormente em autenticação OAuth, mas não será utilizado na nuvem)
 TOKEN_PATH = "backend/config/token.pickle"
 
+import os
+import json
+import streamlit as st
+from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
+
+SCOPES = ['https://www.googleapis.com/auth/drive.file']
+
 def get_google_drive_service():
     """
     Autentica no Google Drive e retorna um serviço da API.
 
-    - Busca as credenciais unificadas de `st.secrets["GOOGLE_CREDENTIALS"]`
-    - Converte para JSON corretamente
-    - Reformata a `private_key` para evitar erro de "Incorrect padding"
+    - Primeiro, tenta carregar as credenciais do `st.secrets`.
+    - Se não encontrar, solicita ao usuário que cole manualmente o JSON de autenticação.
+    - Converte e valida o JSON antes de autenticar.
     """
     st.write("🔍 Tentando autenticação no Google Drive...")
 
+    credentials_json = None
+
+    # 🔹 Primeiro, tenta pegar do `secrets.toml`
     if "GOOGLE_CREDENTIALS" in st.secrets:
         try:
             st.write("✅ Credenciais carregadas. Convertendo JSON...")
-
-            # 🔹 Pega o JSON do TOML e converte para dicionário
             credentials_json = json.loads(st.secrets["GOOGLE_CREDENTIALS"]["json"])
-
-            # 🔹 Restaurar quebras de linha removidas na `private_key`
-            if "private_key" in credentials_json:
-                st.write("🔍 Corrigindo formatação da private_key...")
-                credentials_json["private_key"] = credentials_json["private_key"].replace("\\n", "\n")
-
-            # Exibir JSON formatado (sem mostrar a private_key por segurança)
-            json_safe = credentials_json.copy()
-            json_safe["private_key"] = "*** OCULTA ***"
-            st.json(json_safe)
-
-            # Criar credenciais do Google Drive
-            creds = Credentials.from_service_account_info(credentials_json, scopes=SCOPES)
-            st.success("✅ Autenticado via Conta de Serviço.")
-            return build("drive", "v3", credentials=creds)
-
         except Exception as e:
-            st.error(f"⚠️ Erro ao carregar credenciais de conta de serviço: {e}")
+            st.error(f"⚠️ Erro ao carregar credenciais do secrets.toml: {e}")
 
-    else:
-        st.error("❌ Conta de serviço NÃO encontrada em `st.secrets`.")
+    # 🔹 Se não encontrou nos segredos, pede para o usuário fornecer manualmente
+    if not credentials_json:
+        st.warning("❌ Nenhuma credencial encontrada no secrets. Por favor, cole o JSON abaixo.")
+        json_input = st.text_area("📥 Cole seu JSON de autenticação do Google Drive aqui:", height=250)
 
-    st.error("❌ Nenhuma credencial válida encontrada. Verifique `secrets.toml`.")
-    raise Exception("Falha na autenticação do Google Drive.")
+        if st.button("🔑 Autenticar"):
+            try:
+                credentials_json = json.loads(json_input)
+                st.success("✅ JSON válido! Prosseguindo com a autenticação.")
+            except Exception as e:
+                st.error(f"❌ JSON inválido. Verifique o formato: {e}")
+                return None
+
+    # 🔹 Se ainda não tiver credenciais, aborta
+    if not credentials_json:
+        st.error("❌ Nenhuma credencial válida encontrada. Autenticação abortada.")
+        return None
+
+    # 🔹 Corrigir formatação da `private_key`
+    if "private_key" in credentials_json:
+        st.write("🔍 Corrigindo formatação da private_key...")
+        credentials_json["private_key"] = credentials_json["private_key"].replace("\\n", "\n")
+
+    # 🔹 Exibir JSON formatado sem a `private_key`
+    json_safe = credentials_json.copy()
+    json_safe["private_key"] = "*** OCULTA ***"
+    st.json(json_safe)
+
+    # 🔹 Criar credenciais do Google Drive
+    try:
+        creds = Credentials.from_service_account_info(credentials_json, scopes=SCOPES)
+        st.success("✅ Autenticado via Conta de Serviço com sucesso!")
+        return build("drive", "v3", credentials=creds)
+    except Exception as e:
+        st.error(f"❌ Erro ao autenticar no Google Drive: {e}")
+        return None
+
 
 def create_folder(folder_name):
     """
