@@ -31,7 +31,7 @@ hide_menu_style = """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
 
 # Definir nome do banco de dados
-DB_PATH = "backend/database/fleet_database.db"
+DB_PATH = "backend/database/fleet_management.db"
 DRIVE_FOLDER_ID = "1TeLkfzLxKCMR060z5kd8uNOXev1qLPda"  # ID da pasta no Google Drive
 
 # Verificar se o banco de dados existe localmente antes de baixar
