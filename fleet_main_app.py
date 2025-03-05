@@ -1,9 +1,8 @@
-import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam adicionados corretamente
+import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam carregados corretamente
 import streamlit as st
 import time  # 🔹 Para controle do redirecionamento automático
 import os
-from googleapiclient.errors import HttpError  # 🔹 Importa erro do Google API
-from backend.services.Service_Google_Drive import get_google_drive_service, create_folder, upload_database, download_database  # 🔹 Importa o serviço do Google Drive
+from backend.services.Service_Google_Drive import get_google_drive_service, create_folder, upload_database, download_database  # 🔹 Importação do serviço do Google Drive
 from backend.database.db_fleet import create_database
 from frontend.screens.Screen_Login import login_screen
 from frontend.screens.Screen_User_Create import user_create_screen
@@ -16,7 +15,7 @@ from frontend.screens.Screen_Checklist_lists import checklist_list_screen
 from frontend.screens.Screen_Abastecimento_Create import abastecimento_create_screen
 from frontend.screens.Screen_Abastecimento_List_Edit import abastecimento_list_edit_screen
 from frontend.screens.Screen_Dash import screen_dash
-from frontend.screens.Screen_IA import screen_ia  # ✅ Importa a tela do chatbot IA
+from frontend.screens.Screen_IA import screen_ia  # ✅ Importar a tela do chatbot IA
 
 # Configuração da página e ocultação do menu padrão do Streamlit
 st.set_page_config(page_title="Gestão de Frotas", layout="wide")
@@ -34,7 +33,7 @@ st.markdown(hide_menu_style, unsafe_allow_html=True)
 DB_PATH = "backend/database/fleet_management.db"
 DRIVE_FOLDER_ID = "1TeLkfzLxKCMR060z5kd8uNOXev1qLPda"  # ID da pasta no Google Drive
 
-# Verificar se o banco de dados existe localmente antes de baixar
+# Verifique se o banco de dados existe localmente antes de baixar
 if not os.path.exists(DB_PATH):
     st.write("🔄 Restaurando banco de dados do Google Drive...")
     download_database()
@@ -63,7 +62,7 @@ else:
         ### Como navegar no sistema?
         - **Menu lateral**: Utilize o menu lateral para acessar todas as funcionalidades do sistema.
         - **Cadastrar e Gerenciar**: Adicione e edite usuários, veículos e abastecimentos.
-        - **Checklists**: Registre e acompanhe os checklists de veículos.
+        - **Checklists**: Registre e consulte os checklists de veículos.
         - **Dashboards**: Visualize estatísticas sobre a frota.
         - **IA Inteligente**: Utilize a IA para obter insights sobre os dados da frota.
         - **Logout**: Para sair, basta clicar na opção *Logout* no menu lateral.
