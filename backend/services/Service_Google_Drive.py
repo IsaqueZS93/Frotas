@@ -1,5 +1,3 @@
-# C:\Users\Novaes Engenharia\github - deploy\Frotas\backend\services\Service_Google_Drive.py
-
 import os
 import pickle
 import io
@@ -11,50 +9,50 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from dotenv import load_dotenv
 
-# Carregar variáveis de ambiente
+# Carregar variáveis de ambiente (útil para ambientes locais)
 load_dotenv()
 
 # Definir escopo de acesso (permite gerenciar arquivos no Google Drive)
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
-# Caminhos dos arquivos de autenticação
+# Caminho do arquivo token (usado anteriormente em autenticação OAuth, mas não será utilizado na nuvem)
 TOKEN_PATH = "backend/config/token.pickle"
-CREDENTIALS_FILE = os.getenv("GOOGLE_DRIVE_CREDENTIALS_FILE")
 
 def get_google_drive_service():
     """
     Autentica no Google Drive e retorna um serviço da API.
 
-    Se `GOOGLE_DRIVE_CREDENTIALS_FILE` for definido no .env, usa conta de serviço.
-    Caso contrário, usa autenticação OAuth 2.0 com armazenamento de token.
-
+    Prioriza as credenciais definidas em st.secrets["GOOGLE_SERVICE_ACCOUNT"] (conta de serviço).
+    Se não estiverem disponíveis, utiliza o fluxo OAuth 2.0 com armazenamento apenas em memória
+    (st.session_state), evitando o uso do arquivo token.pickle.
+    
     Retorna:
         service (googleapiclient.discovery.Resource): Objeto autenticado do Google Drive.
     """
     creds = None
 
-    if CREDENTIALS_FILE and os.path.exists(CREDENTIALS_FILE):
-        # Autenticação via conta de serviço (Service Account)
-        creds = Credentials.from_service_account_file(CREDENTIALS_FILE)
-    else:
-        # Autenticação via OAuth 2.0 interativo
-        if os.path.exists(TOKEN_PATH):
-            with open(TOKEN_PATH, 'rb') as token:
-                creds = pickle.load(token)
+    # Tenta usar as credenciais de conta de serviço dos segredos do Streamlit
+    try:
+        import streamlit as st
+        if "GOOGLE_SERVICE_ACCOUNT" in st.secrets:
+            service_account_info = st.secrets["GOOGLE_SERVICE_ACCOUNT"]
+            creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
+            print("✅ Credenciais de conta de serviço carregadas dos segredos do Streamlit.")
+    except Exception as e:
+        print(f"⚠️ Erro ao carregar credenciais do st.secrets: {e}")
 
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                print("🔑 Iniciando fluxo OAuth para autenticação no Google Drive...")
-                flow = InstalledAppFlow.from_client_secrets_file("backend/config/client_secret.json", SCOPES)
-                creds = flow.run_local_server(port=8080)
-
-            with open(TOKEN_PATH, 'wb') as token:
-                pickle.dump(creds, token)
+    # Caso as credenciais de conta de serviço não estejam disponíveis, utiliza OAuth 2.0
+    if not creds:
+        import streamlit as st
+        if "creds" in st.session_state:
+            creds = st.session_state["creds"]
+        else:
+            print("🔑 Iniciando fluxo OAuth para autenticação no Google Drive...")
+            flow = InstalledAppFlow.from_client_secrets_file("backend/config/client_secret.json", SCOPES)
+            creds = flow.run_local_server(port=8080)
+            st.session_state["creds"] = creds  # Armazena em memória (sessão) ao invés de salvar em disco
 
     return build("drive", "v3", credentials=creds)
-
 
 def create_folder(folder_name):
     """
@@ -91,8 +89,6 @@ def create_folder(folder_name):
     except Exception as e:
         print(f"❌ Erro ao criar pasta: {e}")
         return None  # Retorna None caso ocorra um erro
-
-
 
 def upload_file_to_drive(file_path, folder_id=None):
     """Faz upload de um arquivo para uma pasta no Google Drive e retorna o link público."""
@@ -214,7 +210,6 @@ def create_subfolder(parent_folder_id, subfolder_name):
         print(f"❌ Erro ao criar subpasta: {e}")
         return None
 
-
 def delete_file(file_id):
     """Exclui um arquivo do Google Drive pelo ID."""
     try:
@@ -223,7 +218,6 @@ def delete_file(file_id):
         print(f"✅ Arquivo {file_id} excluído com sucesso.")
     except Exception as e:
         print(f"❌ Erro ao excluir arquivo: {e}")
-
 
 def search_files(query):
     """Busca arquivos no Google Drive com base em uma consulta (query)."""
@@ -234,7 +228,6 @@ def search_files(query):
     except Exception as e:
         print(f"❌ Erro ao buscar arquivos: {e}")
         return []
-
 
 if __name__ == "__main__":
     print("🔍 Teste da integração com Google Drive.")
