@@ -2,7 +2,10 @@ import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam adic
 import streamlit as st
 import time  # 🔹 Para controle do redirecionamento automático
 import os
-from backend.services.Service_Google_Drive import get_google_drive_service, create_folder, upload_file_to_drive, download_file_from_drive  # 🔹 Importa o serviço do Google Drive
+try:
+    from backend.services.Service_Google_Drive import get_google_drive_service, create_folder, upload_file_to_drive, download_file_from_drive  # 🔹 Importa o serviço do Google Drive
+except ImportError as e:
+    st.error(f"Erro ao importar o serviço do Google Drive: {e}")
 from backend.database.db_fleet import create_database
 from frontend.screens.Screen_Login import login_screen
 from frontend.screens.Screen_User_Create import user_create_screen
