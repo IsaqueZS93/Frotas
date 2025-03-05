@@ -80,16 +80,6 @@ FLEETBD_FOLDER_ID = "1TeLkfzLxKCMR060z5kd8uNOXev1qLPda"  # ID correto da pasta n
 DB_FILE_PATH = "backend/database/fleet_management.db"  # ✅ Nome corrigido
 DB_FILE_NAME = "fleet_management.db"  # ✅ Nome correto no Google Drive
 
-def get_google_drive_service():
-    """ Autentica e retorna um serviço do Google Drive """
-    try:
-        credentials_json = st.secrets["GOOGLE_CREDENTIALS"]
-        creds = Credentials.from_service_account_info(credentials_json, scopes=SCOPES)
-        return build("drive", "v3", credentials=creds)
-    except Exception as e:
-        st.error(f"❌ Erro ao autenticar no Google Drive: {e}")
-        return None
-
 def upload_database():
     """ Envia ou atualiza o banco de dados no Google Drive """
     try:
