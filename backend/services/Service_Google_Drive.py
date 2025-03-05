@@ -19,14 +19,6 @@ SCOPES = ['https://www.googleapis.com/auth/drive.file']
 # Caminho do arquivo token (usado anteriormente em autenticação OAuth, mas não será utilizado na nuvem)
 TOKEN_PATH = "backend/config/token.pickle"
 
-import os
-import json
-import streamlit as st
-from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
-
-SCOPES = ['https://www.googleapis.com/auth/drive.file']
-
 def get_google_drive_service():
     """
     Autentica no Google Drive e retorna um serviço da API.
@@ -44,10 +36,10 @@ def get_google_drive_service():
             # 🔹 Pega o JSON do TOML e converte para dicionário
             credentials_json = json.loads(st.secrets["GOOGLE_CREDENTIALS"]["json"])
 
-            # 🔹 Corrigir formatação da `private_key`
+            # 🔹 Restaurar quebras de linha removidas na `private_key`
             if "private_key" in credentials_json:
                 st.write("🔍 Corrigindo formatação da private_key...")
-                credentials_json["private_key"] = credentials_json["private_key"].replace('\\n', '\n')
+                credentials_json["private_key"] = credentials_json["private_key"].replace("\\n", "\n")
 
             # Exibir JSON formatado (sem mostrar a private_key por segurança)
             json_safe = credentials_json.copy()
