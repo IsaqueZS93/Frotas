@@ -74,27 +74,47 @@ def get_google_drive_service():
         st.error("❌ Erro ao autenticar no Google Drive.")
         return None
 
-# Configurações do Banco de Dados
+# Configuração do Google Drive
 FLEETBD_FOLDER_ID = "1TeLkfzLxKCMR060z5kd8uNOXev1qLPda"  # ID correto da pasta no Google Drive
-DB_FILE_PATH = "backend/database/fleet_management.db"  # ✅ Nome corrigido
-DB_FILE_NAME = "fleet_management.db"  # ✅ Nome correto no Google Drive
+DB_FILE_NAME = "fleet_management.db"  # Nome do banco no Drive
 
+
+def list_files_in_folder(folder_id):
+    """Lista todos os arquivos dentro da pasta do Google Drive (debug)."""
+    service = get_google_drive_service()
+    if not service:
+        return []
+
+    try:
+        results = service.files().list(
+            q=f"'{folder_id}' in parents and trashed=false",
+            fields="files(id, name)"
+        ).execute()
+        return results.get("files", [])
+    except Exception as e:
+        st.error(f"❌ Erro ao listar arquivos na pasta: {e}")
+        return []
 
 def load_database_into_memory():
-    """Carrega o banco de dados diretamente do Google Drive para a memória."""
+    """Carrega o banco de dados do Google Drive para a memória."""
+
     service = get_google_drive_service()
     if not service:
         return None
 
     st.write("🔄 Buscando banco de dados no Google Drive...")
 
-    existing_files = service.files().list(
-        q=f"name='{DB_FILE_NAME}' and '{FLEETBD_FOLDER_ID}' in parents",
-        fields="files(id)"
-    ).execute().get("files", [])
+    # 🔹 LISTA TODOS OS ARQUIVOS NA PASTA PARA DEBUG
+    files_in_drive = list_files_in_folder(FLEETBD_FOLDER_ID)
+    st.write("📂 Arquivos encontrados na pasta:", files_in_drive)
+
+    # 🔹 TENTAR ENCONTRAR O BANCO EXATO NO DRIVE
+    existing_files = [
+        file for file in files_in_drive if file["name"].strip() == DB_FILE_NAME
+    ]
 
     if not existing_files:
-        st.error("❌ O banco de dados não foi encontrado no Google Drive!")
+        st.error(f"❌ O banco de dados '{DB_FILE_NAME}' não foi encontrado no Google Drive!")
         return None
 
     file_id = existing_files[0]["id"]
