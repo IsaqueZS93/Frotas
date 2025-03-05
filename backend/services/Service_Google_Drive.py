@@ -37,6 +37,7 @@ def get_google_drive_service():
             service_account_info = st.secrets["GOOGLE_SERVICE_ACCOUNT"]
             creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
             print("✅ Credenciais de conta de serviço carregadas dos segredos do Streamlit.")
+            st.write("Dados do GOOGLE_SERVICE_ACCOUNT:", st.secrets["GOOGLE_SERVICE_ACCOUNT"])
     except Exception as e:
         print(f"⚠️ Erro ao carregar credenciais do st.secrets: {e}")
 
