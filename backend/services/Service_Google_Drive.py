@@ -74,6 +74,63 @@ def get_google_drive_service():
         st.error("❌ Erro ao autenticar no Google Drive.")
         return None
 
+# ID da pasta no Google Drive onde o banco será salvo
+FLEETBD_FOLDER_ID = "1TeLkfzLxKCMR060z5kd8uNOXev1qLPda"
+DB_FILE_PATH = "backend/database/fleet_database.db"
+
+def upload_database():
+    """Faz upload do banco de dados para o Google Drive."""
+    try:
+        service = get_google_drive_service()
+        file_metadata = {
+            "name": "fleet_database.db",
+            "parents": [FLEETBD_FOLDER_ID]
+        }
+
+        media = MediaFileUpload(DB_FILE_PATH, resumable=True)
+        existing_files = service.files().list(
+            q=f"name='fleet_database.db' and '{FLEETBD_FOLDER_ID}' in parents",
+            fields="files(id)"
+        ).execute().get("files", [])
+
+        if existing_files:
+            file_id = existing_files[0]["id"]
+            service.files().update(fileId=file_id, media_body=media).execute()
+            st.success("✅ Banco de dados atualizado no Google Drive!")
+        else:
+            service.files().create(body=file_metadata, media_body=media).execute()
+            st.success("✅ Banco de dados salvo no Google Drive pela primeira vez!")
+
+    except HttpError as e:
+        st.error(f"❌ Erro ao fazer upload do banco de dados: {e}")
+
+def download_database():
+    """Baixa o banco de dados do Google Drive e substitui o local."""
+    try:
+        service = get_google_drive_service()
+        existing_files = service.files().list(
+            q=f"name='fleet_database.db' and '{FLEETBD_FOLDER_ID}' in parents",
+            fields="files(id)"
+        ).execute().get("files", [])
+
+        if not existing_files:
+            st.warning("⚠️ Nenhum backup encontrado no Google Drive. Criando um novo banco local.")
+            return
+
+        file_id = existing_files[0]["id"]
+        request = service.files().get_media(fileId=file_id)
+
+        with open(DB_FILE_PATH, "wb") as file:
+            downloader = MediaIoBaseDownload(file, request)
+            done = False
+            while not done:
+                _, done = downloader.next_chunk()
+
+        st.success("✅ Banco de dados restaurado do Google Drive!")
+
+    except HttpError as e:
+        st.error(f"❌ Erro ao baixar o banco de dados: {e}")
+
 
 
 def create_folder(folder_name):
