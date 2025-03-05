@@ -9,7 +9,9 @@ from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from dotenv import load_dotenv
+import googleapiclient.errors
 from googleapiclient.errors import HttpError
+
 
 # Carregar variáveis de ambiente (útil para ambientes locais)
 load_dotenv()
