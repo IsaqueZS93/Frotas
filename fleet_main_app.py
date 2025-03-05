@@ -1,8 +1,8 @@
 import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam carregados corretamente
 import streamlit as st
-import time  # 🔹 Para controle do redirecionamento automático
+import time
 import os
-from backend.services.Service_Google_Drive import get_google_drive_service, create_folder, upload_database, download_database  # 🔹 Importação do serviço do Google Drive
+from backend.services.Service_Google_Drive import upload_database, download_database
 from backend.database.db_fleet import create_database
 from frontend.screens.Screen_Login import login_screen
 from frontend.screens.Screen_User_Create import user_create_screen
@@ -29,19 +29,22 @@ hide_menu_style = """
 """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
 
-# Definir nome do banco de dados
+# Definir caminho do banco de dados
 DB_PATH = "backend/database/fleet_management.db"
-DRIVE_FOLDER_ID = "1TeLkfzLxKCMR060z5kd8uNOXev1qLPda"  # ID da pasta no Google Drive
 
-# Verifique se o banco de dados existe localmente antes de baixar
+# 🔄 Baixar o banco de dados do Google Drive, se necessário
+st.write("🔄 Verificando banco de dados...")
+
 if not os.path.exists(DB_PATH):
-    st.write("🔄 Restaurando banco de dados do Google Drive...")
+    st.warning("⚠️ Banco de dados local não encontrado. Tentando baixar do Google Drive...")
     download_database()
-else:
-    st.write("✅ Banco de dados local encontrado.")
 
-# Inicializa o banco de dados
-create_database()
+    # Se o download falhar, cria um novo banco de dados e faz o upload inicial
+    if not os.path.exists(DB_PATH):
+        st.error("❌ Nenhum banco de dados encontrado. Criando um novo...")
+        create_database()
+        upload_database()  # Envia o banco novo para o Google Drive
+        st.success("✅ Novo banco de dados criado e salvo no Google Drive!")
 
 # Inicializa a sessão do usuário
 if "authenticated" not in st.session_state:
@@ -128,5 +131,6 @@ else:
             st.warning("Você não tem permissão para acessar esta página.")
 
 # Fazer backup do banco de dados no Google Drive ao finalizar a execução
-time.sleep(3)
-upload_database()
+if os.path.exists(DB_PATH):
+    st.write("💾 Salvando banco de dados no Google Drive...")
+    upload_database()
