@@ -3,8 +3,7 @@
 import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam adicionados corretamente
 import streamlit as st
 import time  # 🔹 Para controle do redirecionamento automático
-
-# Agora todos os imports funcionam corretamente
+from backend.services.Service_Google_Drive import get_google_drive_service, create_folder  # 🔹 Importa o serviço do Google Drive
 from backend.database.db_fleet import create_database
 from frontend.screens.Screen_Login import login_screen
 from frontend.screens.Screen_User_Create import user_create_screen
@@ -33,6 +32,39 @@ st.markdown(hide_menu_style, unsafe_allow_html=True)
 
 # 🔹 Inicializa o banco de dados
 create_database()
+
+# 🔹 Depuração das credenciais do Google Drive
+st.subheader("🔍 Verificando credenciais do Google Drive...")
+
+if "GOOGLE_SERVICE_ACCOUNT" in st.secrets:
+    st.success("✅ Conta de serviço detectada.")
+    st.json(st.secrets["GOOGLE_SERVICE_ACCOUNT"])
+else:
+    st.error("❌ Conta de serviço NÃO encontrada em `st.secrets`.")
+
+if "web" in st.secrets:
+    st.success("✅ Credenciais OAuth detectadas.")
+    st.json(st.secrets["web"])
+else:
+    st.error("❌ Credenciais OAuth NÃO encontradas em `st.secrets`.")
+
+# 🔹 Testando a conexão com o Google Drive
+try:
+    service = get_google_drive_service()
+    st.success("✅ Conexão com o Google Drive estabelecida com sucesso!")
+except Exception as e:
+    st.error(f"❌ Erro ao conectar ao Google Drive: {e}")
+
+# 🔹 Testando a criação de pasta no Google Drive
+st.subheader("📂 Testando criação de pasta no Google Drive")
+try:
+    folder_id = create_folder("Teste_Pasta")
+    if folder_id:
+        st.success(f"📁 Pasta criada com sucesso! ID: {folder_id}")
+    else:
+        st.error("❌ Falha ao criar a pasta.")
+except Exception as e:
+    st.error(f"❌ Erro ao criar a pasta no Google Drive: {e}")
 
 # 🔹 Inicializa a sessão do usuário
 if "authenticated" not in st.session_state:
