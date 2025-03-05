@@ -22,9 +22,8 @@ TOKEN_PATH = "backend/config/token.pickle"
 def get_google_drive_service():
     """
     Autentica no Google Drive e retorna um serviço da API.
-
-    - Apenas utiliza a conta de serviço definida em `st.secrets["GOOGLE_SERVICE_ACCOUNT"]`
-    - Remove a autenticação OAuth, pois não é suportada no Streamlit Cloud.
+    - Apenas usa a conta de serviço de `st.secrets["GOOGLE_SERVICE_ACCOUNT"]`
+    - Reformata manualmente a `private_key` para evitar erro de "Incorrect padding"
     """
     st.write("🔍 Tentando autenticação no Google Drive...")
 
@@ -33,16 +32,22 @@ def get_google_drive_service():
             st.write("✅ Credenciais carregadas. Testando formatação...")
             service_account_info = st.secrets["GOOGLE_SERVICE_ACCOUNT"]
 
-            # Depuração: Verificar se a chave privada tem quebras de linha corretas
+            # 🔹 Reformatar manualmente a private_key para evitar padding incorreto
             if "private_key" in service_account_info:
                 st.write("🔍 Verificando private_key...")
-                if "-----BEGIN PRIVATE KEY-----" in service_account_info["private_key"] and \
-                   "-----END PRIVATE KEY-----" in service_account_info["private_key"]:
+
+                # Restaurar quebras de linha removidas pelo Streamlit
+                private_key = service_account_info["private_key"].replace('\\n', '\n')
+
+                if "-----BEGIN PRIVATE KEY-----" in private_key and "-----END PRIVATE KEY-----" in private_key:
                     st.success("✅ private_key formatada corretamente!")
                 else:
                     st.error("❌ Erro na formatação da private_key!")
 
-            # Criar credenciais e autenticar serviço
+                # Aplicar a private_key corrigida antes de passar para autenticação
+                service_account_info["private_key"] = private_key  
+
+            # Criar credenciais do Google Drive
             creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
             st.success("✅ Autenticado via Conta de Serviço.")
             return build("drive", "v3", credentials=creds)
