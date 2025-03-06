@@ -1,7 +1,7 @@
-import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam adicionados corretamente
+import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam carregados corretamente
 import streamlit as st
 import time  # 🔹 Para controle do redirecionamento automático
-from backend.services.Service_Google_Drive import get_google_drive_service, create_folder  # 🔹 Importa o serviço do Google Drive
+from backend.services.Service_Google_Drive import get_google_drive_service, create_folder, download_database  # 🔹 Importa o serviço do Google Drive
 from backend.database.db_fleet import create_database
 from frontend.screens.Screen_Login import login_screen
 from frontend.screens.Screen_User_Create import user_create_screen
@@ -36,6 +36,8 @@ if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 if "user_type" not in st.session_state:
     st.session_state["user_type"] = None
+if "user_name" not in st.session_state:
+    st.session_state["user_name"] = None
 if "show_welcome" not in st.session_state:
     st.session_state["show_welcome"] = True  # Indica se deve mostrar a tela de boas-vindas
 
@@ -83,6 +85,14 @@ else:
             ]
         )
 
+        # Se o usuário for "Isaque.Z", exibir o botão para baixar backup do banco
+        if st.session_state.get("user_name") == "Isaque.Z":
+            st.sidebar.subheader("⚙️ Configurações Avançadas")
+            if st.sidebar.button("📥 Baixar Backup do Banco"):
+                st.write("🔄 Baixando backup do banco de dados...")
+                download_database()
+                st.success("✅ Backup do banco de dados baixado com sucesso!")
+
         if menu_option == "Gerenciar Perfil":
             user_control_screen()
         elif menu_option == "Cadastrar Usuário" and st.session_state["user_type"] == "ADMIN":
@@ -110,6 +120,7 @@ else:
             st.session_state["authenticated"] = False
             st.session_state["user_id"] = None
             st.session_state["user_type"] = None
+            st.session_state["user_name"] = None
             st.session_state["show_welcome"] = True  # Resetar para exibir boas-vindas na próxima vez
             st.success("Você saiu do sistema. Redirecionando para a tela de login... 🔄")
             st.rerun()
