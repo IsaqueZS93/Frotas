@@ -44,25 +44,14 @@ if not os.path.exists(DB_PATH):
     create_database()
 
 # 🔹 Verificar se conseguimos abrir o banco
-try:
-    with open(DB_PATH, "rb") as file:
-        st.success("✅ Banco de dados encontrado e pronto para download.")
-except FileNotFoundError:
+if os.path.exists(DB_PATH):
+    st.success("✅ Banco de dados encontrado e pronto para download.")
+else:
     st.error("❌ Banco de dados não encontrado! Ele pode estar rodando em memória.")
-    # Tentar salvar do SQLite para um arquivo
-    try:
-        conn = sqlite3.connect(":memory:")
-        backup_conn = sqlite3.connect(DB_PATH)
-        conn.backup(backup_conn)
-        backup_conn.close()
-        conn.close()
-        st.success("✅ Banco de dados exportado para um arquivo antes do backup!")
-    except Exception as e:
-        st.error(f"⚠️ Falha ao exportar o banco de dados: {e}")
 
 # 🔹 Carregar credenciais do GitHub do secrets.toml
-GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", None)
-GITHUB_REPO = st.secrets.get("GITHUB_REPO", None)
+GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN")
+GITHUB_REPO = st.secrets.get("GITHUB_REPO")
 
 if not GITHUB_TOKEN or not GITHUB_REPO:
     st.error("⚠️ Erro: Token do GitHub ou Repositório não configurado nos Secrets do Streamlit!")
@@ -112,9 +101,21 @@ else:
     st.sidebar.write(f"👤 Usuário logado: {st.session_state.get('user_name', 'Desconhecido')}")
     st.sidebar.write(f"🔑 Permissão: {st.session_state.get('user_type', 'Desconhecido')}")
 
-    # 🔹 Exibir botão de backup apenas para ADMINs
+    # 🔹 Exibir botão de backup e download apenas para ADMINs
     if st.session_state.get("user_type") == "ADMIN":
         st.sidebar.subheader("⚙️ Configurações Avançadas")
+
+        # 🔹 Download direto do banco
+        if os.path.exists(DB_PATH):
+            with open(DB_PATH, "rb") as file:
+                st.sidebar.download_button(
+                    label="📥 Baixar Banco de Dados",
+                    data=file,
+                    file_name="fleet_management.db",
+                    mime="application/octet-stream"
+                )
+
+        # 🔹 Atualizar banco no GitHub
         if os.path.exists(DB_PATH):
             if st.sidebar.button("📤 Atualizar Banco no GitHub"):
                 push_to_github()
