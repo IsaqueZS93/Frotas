@@ -1,7 +1,6 @@
 import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam adicionados corretamente
 import streamlit as st
 import os
-import time
 import sqlite3
 from backend.database.db_fleet import create_database, DB_PATH
 
@@ -18,7 +17,7 @@ from frontend.screens.Screen_Abastecimento_List_Edit import abastecimento_list_e
 from frontend.screens.Screen_Dash import screen_dash
 from frontend.screens.Screen_IA import screen_ia  # ✅ Importa a tela do chatbot IA
 
-# Configuração da página e ocultação do menu padrão do Streamlit
+# 🔹 Configuração da página e ocultação do menu padrão do Streamlit
 st.set_page_config(page_title="Gestão de Frotas", layout="wide")
 
 hide_menu_style = """
@@ -30,7 +29,7 @@ hide_menu_style = """
 """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
 
-# 🔹 Criar e verificar o banco de dados antes de iniciar
+# 🔹 Verificação e criação do banco de dados
 st.write(f"📂 Tentando localizar o banco de dados em: `{DB_PATH}`")
 if not os.path.exists(DB_PATH):
     st.warning("⚠️ Banco de dados não encontrado! Criando um novo banco...")
@@ -46,8 +45,12 @@ st.success("✅ Banco de dados encontrado e pronto para uso!")
 # 🔹 Criar usuário inicial caso necessário
 def create_default_user():
     """Cria um usuário padrão caso nenhum esteja cadastrado."""
-    default_user = st.secrets.get("DEFAULT_USER", "admin")
-    default_password = st.secrets.get("DEFAULT_PASSWORD", "admin123")
+    try:
+        default_user = st.secrets["DEFAULT_USER"]
+        default_password = st.secrets["DEFAULT_PASSWORD"]
+    except KeyError:
+        st.error("❌ Configuração inválida! Defina 'DEFAULT_USER' e 'DEFAULT_PASSWORD' nos *secrets* do Streamlit.")
+        return
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -92,11 +95,11 @@ else:
     st.sidebar.write(f"👤 Usuário logado: {st.session_state.get('user_name', 'Desconhecido')}")
     st.sidebar.write(f"🔑 Permissão: {st.session_state.get('user_type', 'Desconhecido')}")
 
-    # 🔹 Exibir botão de backup para ADMINs
+    # 🔹 Exibir botões para backup e restauração do banco de dados
     if st.session_state.get("user_type") == "ADMIN":
         st.sidebar.subheader("⚙️ Configurações Avançadas")
 
-        # 🔹 Botão para download do banco de dados
+        # 🔹 Download do banco de dados
         with open(DB_PATH, "rb") as file:
             st.sidebar.download_button(
                 label="📥 Baixar Backup do Banco",
