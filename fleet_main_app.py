@@ -1,17 +1,20 @@
 import streamlit as st
-from backend.services.Service_Google_Drive import create_folder
+from backend.services.Service_Google_Drive import create_subfolder
 
-# Nome da pasta que será criada
-FOLDER_NAME = "BDFROTAS"
+# ID da pasta principal "Gestão de Frotas"
+PARENT_FOLDER_ID = "1xxod-E9hotXDmQ0z4uMofLHHb8zYqwEy"
 
-st.title("📂 Criação de Pasta no Google Drive")
+# Nome da subpasta a ser criada
+SUBFOLDER_NAME = "BDFROTAS"
 
-st.write(f"🔄 Criando/verificando a pasta `{FOLDER_NAME}` no Google Drive...")
+st.title("📂 Criação de Subpasta no Google Drive")
 
-# Chamar a função para criar a pasta
-folder_id = create_folder(FOLDER_NAME)
+st.write(f"🔄 Criando/verificando a subpasta '{SUBFOLDER_NAME}' dentro da pasta principal...")
 
-if folder_id:
-    st.success(f"✅ Pasta '{FOLDER_NAME}' criada ou encontrada com sucesso! ID: `{folder_id}`")
+# Criar a subpasta
+subfolder_id = create_subfolder(PARENT_FOLDER_ID, SUBFOLDER_NAME)
+
+if subfolder_id:
+    st.success(f"✅ Subpasta '{SUBFOLDER_NAME}' criada ou encontrada com sucesso! ID: {subfolder_id}")
 else:
-    st.error(f"❌ Erro ao criar/verificar a pasta `{FOLDER_NAME}`!")
+    st.error(f"❌ Erro ao criar/verificar a subpasta '{SUBFOLDER_NAME}'.")
