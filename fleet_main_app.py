@@ -8,7 +8,7 @@ st.title("🔍 Teste Avançado de Busca no Google Drive")
 st.write(f"📂 Verificando arquivos na pasta ID: {BDFROTAS_FOLDER_ID}...")
 
 # Teste de busca
-arquivos = list_files_in_folder(BDFROTAS_FOLDER_ID)
+arquivos = list_files_in_folder2(BDFROTAS_FOLDER_ID)
 
 if arquivos:
     st.success(f"✅ {len(arquivos)} arquivo(s) encontrado(s) na pasta!")
