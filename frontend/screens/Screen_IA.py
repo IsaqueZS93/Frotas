@@ -8,6 +8,30 @@ from langchain.memory import ConversationBufferMemory
 from langchain_groq import ChatGroq
 from langchain.prompts import ChatPromptTemplate
 
+def split_large_json(db_json, max_tokens=4000):
+    """Divide um JSON grande em partes menores se exceder o limite de tokens."""
+    json_data = json.loads(db_json)
+    json_parts = []
+    current_part = {}
+    current_size = 0
+
+    for table, rows in json_data.items():
+        table_json = json.dumps({table: rows}, ensure_ascii=False)
+        table_size = len(table_json)
+        
+        if current_size + table_size > max_tokens:
+            json_parts.append(json.dumps(current_part, ensure_ascii=False, indent=2))
+            current_part = {table: rows}
+            current_size = table_size
+        else:
+            current_part[table] = rows
+            current_size += table_size
+    
+    if current_part:
+        json_parts.append(json.dumps(current_part, ensure_ascii=False, indent=2))
+    
+    return json_parts
+
 def load_database_as_json(db_path):
     """Carrega todas as informações do banco de dados corretamente e retorna um JSON válido."""
     try:
@@ -27,15 +51,17 @@ def load_database_as_json(db_path):
             db_data[table] = table_data
         
         conn.close()
-        return json.dumps(db_data, ensure_ascii=False, indent=2)
+        full_json = json.dumps(db_data, ensure_ascii=False, indent=2)
+        return split_large_json(full_json)
     except sqlite3.Error as e:
         st.error("❌ Erro ao carregar dados do banco de dados.")
         st.write(f"Detalhes do erro: {e}")
-        return "{}"
+        return ["{}"]
 
-def build_chain(db_json, selected_llm):
+def build_chain(db_json_parts, selected_llm):
     """Cria a cadeia de conversação garantindo que o JSON seja bem tratado."""
-    db_json_escaped = db_json.replace("{", "{{").replace("}", "}}").replace("\"", "\\\"")
+    db_json_combined = "\n".join(db_json_parts)
+    db_json_escaped = db_json_combined.replace("{", "{{").replace("}", "}}").replace("\"", "\\\"")
     system_message = f"""
     Você é um assistente chamado Águia que responde com base no JSON do banco de dados.
     Aqui está o contexto:
@@ -63,17 +89,18 @@ def screen_ia():
         st.error(f"❌ Banco de dados não encontrado em: {db_path}")
         return
 
-    db_json = load_database_as_json(db_path)
+    db_json_parts = load_database_as_json(db_path)
     
     selected_model = "groq-llm"
     selected_llm = ChatGroq(api_key=GROQ_API_KEY, model_name=selected_model)
-    chain = build_chain(db_json, selected_llm)
+    chain = build_chain(db_json_parts, selected_llm)
 
     st.title("🦅 IA Águia - Respostas Baseadas no Banco de Dados 🚛")
     st.markdown("### Faça suas perguntas sobre os dados da frota:")
 
     with st.expander("Visualizar JSON do banco de dados"):
-        st.json(json.loads(db_json))
+        for idx, part in enumerate(db_json_parts):
+            st.json(json.loads(part))
 
     if "memoria" not in st.session_state:
         st.session_state["memoria"] = ConversationBufferMemory()
