@@ -1,7 +1,7 @@
-import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam carregados corretamente
+import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam adicionados corretamente
 import streamlit as st
-import shutil
 import os
+import time
 from backend.database.db_fleet import create_database
 
 from frontend.screens.Screen_Login import login_screen
@@ -29,10 +29,15 @@ hide_menu_style = """
 """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
 
-# Inicializa o banco de dados
-create_database()
+# Caminho do banco de dados
+DB_PATH = "backend/database/fleet_management.db"
 
-# Inicializa a sessão do usuário
+# 🔹 Criar banco de dados se não existir
+if not os.path.exists(DB_PATH):
+    st.warning("⚠️ Banco de dados não encontrado! Criando um novo banco...")
+    create_database()
+
+# 🔹 Inicializa a sessão do usuário
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 if "user_type" not in st.session_state:
@@ -42,10 +47,7 @@ if "user_name" not in st.session_state:
 if "show_welcome" not in st.session_state:
     st.session_state["show_welcome"] = True  # ✅ Indica se deve mostrar a tela de boas-vindas
 
-# Caminho do banco de dados
-DB_PATH = "backend/database/fleet_management.db"
-
-# Se o usuário NÃO estiver autenticado, exibir tela de login
+# 🔹 Se o usuário NÃO estiver autenticado, exibir tela de login
 if not st.session_state["authenticated"]:
     user_name = login_screen()  # ✅ Supondo que login_screen retorna o nome do usuário ao fazer login
     
@@ -53,22 +55,27 @@ if not st.session_state["authenticated"]:
         st.session_state["user_name"] = user_name  # ✅ Salvar nome do usuário na sessão
         st.rerun()
 else:
-    # Debug: Mostrar usuário e função no menu lateral
+    # 🔹 Exibir usuário logado no menu lateral
     st.sidebar.write(f"👤 Usuário logado: {st.session_state.get('user_name', 'Desconhecido')}")
     st.sidebar.write(f"🔑 Permissão: {st.session_state.get('user_type', 'Desconhecido')}")
 
-    # Exibir botão de backup para ADMINs
+    # 🔹 Exibir botão de backup apenas para ADMINs
     if st.session_state.get("user_type") == "ADMIN":
         st.sidebar.subheader("⚙️ Configurações Avançadas")
-        with open(DB_PATH, "rb") as file:
-            st.sidebar.download_button(
-                label="📥 Baixar Backup do Banco",
-                data=file,
-                file_name="fleet_management.db",
-                mime="application/octet-stream"
-            )
+        
+        # 🔹 Verifica se o banco existe antes de permitir o download
+        if os.path.exists(DB_PATH):
+            with open(DB_PATH, "rb") as file:
+                st.sidebar.download_button(
+                    label="📥 Baixar Backup do Banco",
+                    data=file,
+                    file_name="fleet_management.db",
+                    mime="application/octet-stream"
+                )
+        else:
+            st.sidebar.error("❌ Banco de dados não encontrado para download!")
 
-    # Menu lateral para navegação
+    # 🔹 Menu lateral para navegação
     st.sidebar.title("Gestão de Frotas 🚛")
     menu_option = st.sidebar.radio(
         "Navegação",
@@ -102,7 +109,7 @@ else:
     elif menu_option == "Chatbot IA 🤖":
         screen_ia()  # Chama a tela do chatbot IA
     elif menu_option == "Logout":
-        # Botão de logout: Reseta sessão e recarrega a página
+        # 🔹 Botão de logout: Reseta sessão e recarrega a página
         st.session_state["authenticated"] = False
         st.session_state["user_id"] = None
         st.session_state["user_type"] = None
