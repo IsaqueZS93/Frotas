@@ -76,7 +76,7 @@ def get_google_drive_service():
 
 # Configuração do Google Drive
 FLEETBD_FOLDER_ID = "1TeLkfzLxKCMR060z5kd8uNOXev1qLPda"  # ID correto da pasta no Google Drive
-DB_FILE_NAME = "LUVAS .jpeg"  # Nome do banco no Drive
+DB_FILE_NAME = "fleet_management.db"  # Nome do banco no Drive
 
 
 def list_files_in_folder(folder_id):
