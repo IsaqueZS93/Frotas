@@ -4,8 +4,8 @@ import os
 import time
 import subprocess
 import sqlite3
-from backend.database.db_fleet import create_database
 
+from backend.database.db_fleet import create_database
 from frontend.screens.Screen_Login import login_screen
 from frontend.screens.Screen_User_Create import user_create_screen
 from frontend.screens.Screen_User_List_Edit import user_list_edit_screen
@@ -31,6 +31,16 @@ hide_menu_style = """
 """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
 
+# 🔹 Função para listar todos os arquivos dentro da nuvem Streamlit
+def list_all_files():
+    """Lista todos os arquivos e diretórios disponíveis no ambiente da nuvem Streamlit."""
+    files_found = []
+    for root, dirs, files in os.walk("/"):
+        for file in files:
+            file_path = os.path.join(root, file)
+            files_found.append(file_path)
+    return files_found
+
 # 🔹 Caminho correto do banco de dados
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_FOLDER = os.path.join(BASE_DIR, "backend", "database")
@@ -50,41 +60,17 @@ if not os.path.exists(DB_PATH):
 
 # 🔹 Verificar se conseguimos abrir o banco
 if os.path.exists(DB_PATH):
-    st.success("✅ Banco de dados encontrado e pronto para uso.")
+    st.success(f"✅ Banco de dados encontrado em: `{DB_PATH}`")
 else:
     st.error("❌ Banco de dados não encontrado! Certifique-se de que o banco foi salvo corretamente.")
 
-# 🔹 Carregar credenciais do GitHub do secrets.toml
-GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN")
-GITHUB_REPO = st.secrets.get("GITHUB_REPO")
-
-if not GITHUB_TOKEN or not GITHUB_REPO:
-    st.error("⚠️ Erro: Token do GitHub ou Repositório não configurado nos Secrets do Streamlit!")
+# 🔹 Listar todos os arquivos na nuvem para diagnóstico
+st.subheader("🕵️ Arquivos encontrados no sistema:")
+files_list = list_all_files()
+if files_list:
+    st.write(files_list)
 else:
-    st.success("✅ Configuração do GitHub carregada corretamente.")
-
-# 🔹 Função para enviar o banco para o GitHub
-def push_to_github():
-    """Atualiza o banco de dados no GitHub automaticamente"""
-    if not os.path.exists(DB_PATH):
-        st.error("❌ Banco de dados não encontrado para upload!")
-        return False
-
-    try:
-        repo_url = f"https://{GITHUB_TOKEN}@github.com/{GITHUB_REPO}.git"
-
-        subprocess.run(["git", "config", "--global", "user.email", "streamlit@fleet.com"], check=True)
-        subprocess.run(["git", "config", "--global", "user.name", "Streamlit AutoCommit"], check=True)
-        subprocess.run(["git", "add", DB_PATH], check=True)
-        subprocess.run(["git", "commit", "-m", "🔄 Atualização automática do banco de dados"], check=True)
-        subprocess.run(["git", "push", repo_url, "main"], check=True)
-
-        st.success("✅ Banco de dados atualizado no GitHub com sucesso!")
-        return True
-
-    except subprocess.CalledProcessError as e:
-        st.error(f"❌ Erro ao enviar para o GitHub: {e}")
-        return False
+    st.error("❌ Nenhum arquivo encontrado no sistema!")
 
 # 🔹 Inicializa a sessão do usuário
 if "authenticated" not in st.session_state:
@@ -121,13 +107,8 @@ else:
                     file_name="fleet_management.db",
                     mime="application/octet-stream"
                 )
-
-        # 🔹 Atualizar banco no GitHub
-        if os.path.exists(DB_PATH):
-            if st.sidebar.button("📤 Atualizar Banco no GitHub"):
-                push_to_github()
         else:
-            st.sidebar.error("❌ Banco de dados não encontrado para upload!")
+            st.sidebar.error("❌ Banco de dados não encontrado para download!")
 
     # 🔹 Menu lateral para navegação
     menu_option = st.sidebar.radio(
