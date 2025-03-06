@@ -39,9 +39,20 @@ custom_style = """
         border-radius: 10px;
         padding: 10px;
         width: 100%;
+        box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
     }
     .stButton>button:hover {
         background-color: #1976D2;
+    }
+    input, textarea, select {
+        background-color: #FFFFFF;
+        border-radius: 8px;
+        padding: 8px;
+        border: 1px solid #90CAF9;
+        box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+    }
+    label, h1, h2, h3, h4, h5, h6 {
+        font-weight: bold;
     }
     </style>
 """
