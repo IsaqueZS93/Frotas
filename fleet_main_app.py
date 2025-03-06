@@ -51,12 +51,15 @@ if "user_name" not in st.session_state:
     st.session_state["user_name"] = "Administrador"
 if "show_welcome" not in st.session_state:
     st.session_state["show_welcome"] = True
+if "first_access" not in st.session_state:
+    st.session_state["first_access"] = True  # ✅ Para controlar o primeiro acesso
 
 # 🔹 Se for a primeira execução, pula o login e vai direto para o sistema
-if not st.session_state["authenticated"]:
+if st.session_state["first_access"]:
     st.session_state["authenticated"] = True  # ✅ Define como autenticado automaticamente
     st.session_state["user_type"] = "ADMIN"  # ✅ Permite acesso às telas ADMIN
     st.session_state["user_name"] = "Administrador"
+    st.session_state["first_access"] = False  # ✅ Desativa a lógica de primeira execução
 
 # 🔹 Exibir usuário logado no menu lateral
 st.sidebar.write(f"👤 Usuário logado: {st.session_state.get('user_name', 'Desconhecido')}")
@@ -119,12 +122,10 @@ elif menu_option == "Dashboards" and st.session_state["user_type"] == "ADMIN":
 elif menu_option == "Chatbot IA 🤖":
     screen_ia()  # Chama a tela do chatbot IA
 elif menu_option == "Logout":
+    st.session_state.clear()  # 🔥 Limpa todas as variáveis de sessão para resetar tudo
     st.session_state["authenticated"] = False
-    st.session_state["user_id"] = None
-    st.session_state["user_type"] = None
-    st.session_state["user_name"] = None
     st.session_state["first_access"] = True  # ✅ Quando deslogar, volta a pedir login na próxima vez
-    st.success("Você saiu do sistema. Redirecionando para a tela de login... 🔄")
+    st.success("✅ Você saiu do sistema com sucesso! Redirecionando... 🔄")
     st.rerun()
 else:
     st.warning("Você não tem permissão para acessar esta página.")
