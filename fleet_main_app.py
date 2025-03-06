@@ -1,7 +1,7 @@
 import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam carregados corretamente
 import streamlit as st
 import time  # 🔹 Para controle do redirecionamento automático
-from backend.services.Service_Google_Drive import get_google_drive_service, create_folder, download_database  # 🔹 Importa o serviço do Google Drive
+from backend.services.Service_Google_Drive import download_database  # 🔹 Importa a função de download
 from backend.database.db_fleet import create_database
 from frontend.screens.Screen_Login import login_screen
 from frontend.screens.Screen_User_Create import user_create_screen
@@ -37,7 +37,7 @@ if "authenticated" not in st.session_state:
 if "user_type" not in st.session_state:
     st.session_state["user_type"] = None
 if "user_name" not in st.session_state:
-    st.session_state["user_name"] = None  # ✅ Adicionando nome do usuário na sessão
+    st.session_state["user_name"] = None  # ✅ Salvar nome do usuário
 if "show_welcome" not in st.session_state:
     st.session_state["show_welcome"] = True  # Indica se deve mostrar a tela de boas-vindas
 
@@ -46,11 +46,12 @@ if not st.session_state["authenticated"]:
     user_name = login_screen()  # ✅ Supondo que login_screen retorna o nome do usuário ao fazer login
     
     if user_name:
-        st.session_state["user_name"] = user_name  # ✅ Armazena o nome do usuário na sessão
+        st.session_state["user_name"] = user_name  # ✅ Salvar nome do usuário na sessão
         st.rerun()
 else:
-    # Debug: Mostra o nome do usuário logado
-    st.sidebar.write(f"👤 Usuário logado: {st.session_state.get('user_name')}")  # ✅ Verificando se o nome está salvo corretamente
+    # Debug: Mostrar usuário e função no menu lateral
+    st.sidebar.write(f"👤 Usuário logado: {st.session_state.get('user_name', 'Desconhecido')}")
+    st.sidebar.write(f"🔑 Permissão: {st.session_state.get('user_type', 'Desconhecido')}")
 
     # Exibir a tela de boas-vindas antes do menu lateral
     if st.session_state["show_welcome"]:
@@ -92,8 +93,8 @@ else:
             ]
         )
 
-        # ✅ Exibir botão apenas se o usuário for "Isaque.Z"
-        if st.session_state.get("user_name") == "Isaque.Z":
+        # ✅ Exibir botão de backup para ADMINs
+        if st.session_state.get("user_type") == "ADMIN":
             st.sidebar.subheader("⚙️ Configurações Avançadas")
             if st.sidebar.button("📥 Baixar Backup do Banco"):
                 st.write("🔄 Baixando backup do banco de dados...")
