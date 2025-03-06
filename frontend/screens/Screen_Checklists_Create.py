@@ -1,5 +1,3 @@
-# C:\Users\Novaes Engenharia\github - deploy\Frotas\frontend\screens\Screen_Checklists_Create.py
-
 import streamlit as st
 import sys
 import os
@@ -34,10 +32,11 @@ def checklist_create_screen():
         st.error("Você não tem permissão para acessar esta tela.")
         return
 
+    # 🔹 Seleção do veículo
     veiculos = get_all_veiculos()
     placas = [veiculo["placa"] for veiculo in veiculos]
     placa = st.selectbox("🔹 Selecione a Placa do Veículo", placas)
-
+    
     veiculo = get_veiculo_by_placa(placa)
     km_atual = veiculo["hodometro_atual"] if veiculo else 0
 
@@ -46,62 +45,54 @@ def checklist_create_screen():
         st.session_state["placa_selecionada"] = placa
 
     st.text(f"📌 KM Atual do Veículo: {st.session_state['km_atual_aux']} km")
-
-    # Entrada do KM informado pelo usuário
     km_informado = st.number_input("📌 KM Informado", min_value=st.session_state["km_atual_aux"], step=1)
 
-    # Seleção do tipo de checklist (INICIO ou FIM)
-    tipo_checklist = st.radio("📝 Tipo de Checklist", ["INICIO", "FIM"])
+    # 🔹 Tipo de checklist (INICIO ou FIM)
+    tipo_checklist = st.radio("📝 Tipo de Checklist", ["INICIO", "FIM"], horizontal=True)
 
-    # Perguntas do checklist
-    pneus_ok = st.radio("🛞 Condição dos Pneus", ["SIM", "NÃO"]) == "SIM"
-    farois_setas_ok = st.radio("💡 Faróis e Setas Funcionando?", ["SIM", "NÃO"]) == "SIM"
-    freios_ok = st.radio("🛑 Condição dos Freios", ["SIM", "NÃO"]) == "SIM"
-    oleo_ok = st.radio("🛢️ Nível do Óleo Adequado?", ["SIM", "NÃO"]) == "SIM"
-    vidros_retrovisores_ok = st.radio("🚗 Vidros e Retrovisores Ajustados?", ["SIM", "NÃO"]) == "SIM"
-    itens_seguranca_ok = st.radio("🦺 Itens de Segurança Estão Completos?", ["SIM", "NÃO"]) == "SIM"
-
-    # Observações gerais
+    # 🔹 Perguntas organizadas em colunas para melhor apresentação
+    col1, col2 = st.columns(2)
+    with col1:
+        pneus_ok = st.radio("🛞 Condição dos Pneus", ["SIM", "NÃO"], horizontal=True) == "SIM"
+        farois_setas_ok = st.radio("💡 Faróis e Setas Funcionando?", ["SIM", "NÃO"], horizontal=True) == "SIM"
+        freios_ok = st.radio("🛑 Condição dos Freios", ["SIM", "NÃO"], horizontal=True) == "SIM"
+    
+    with col2:
+        oleo_ok = st.radio("🛢️ Nível do Óleo Adequado?", ["SIM", "NÃO"], horizontal=True) == "SIM"
+        vidros_retrovisores_ok = st.radio("🚗 Vidros e Retrovisores Ajustados?", ["SIM", "NÃO"], horizontal=True) == "SIM"
+        itens_seguranca_ok = st.radio("🦺 Itens de Segurança Completos?", ["SIM", "NÃO"], horizontal=True) == "SIM"
+    
+    # 🔹 Observações gerais
     observacoes = st.text_area("📝 Observações (Opcional)")
 
-    # Upload de fotos
+    # 🔹 Upload de fotos
     fotos = st.file_uploader("📸 Adicionar Fotos do Veículo", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
 
     # Criar nome da pasta no Google Drive (com base na placa)
     pasta_veiculo_id = create_subfolder(PASTA_CHECKLISTS_ID, placa)
-
     if not pasta_veiculo_id:
         st.error("❌ Erro ao criar/verificar pasta do veículo no Google Drive.")
         return
-
+    
     # Criar nomes para as imagens antes do upload
     data_hora_str = datetime.now().strftime("%Y%m%d_%H%M%S")
     imagens_paths = []
-
+    
     for foto in fotos:
-        extensao = os.path.splitext(foto.name)[1]  # Obtém a extensão do arquivo (.jpg, .png)
-        nome_arquivo = f"{placa}_{data_hora_str}{extensao}"  # Formato: ABC1234_20240305_153022.jpg
-        
-        # Criar arquivo temporário
-        temp_path = os.path.join("/tmp", nome_arquivo)  # Alterar para tempfile.gettempdir() se necessário
+        extensao = os.path.splitext(foto.name)[1]
+        nome_arquivo = f"{placa}_{data_hora_str}{extensao}"
+        temp_path = os.path.join("/tmp", nome_arquivo)
         with open(temp_path, "wb") as temp_file:
             temp_file.write(foto.read())
-        
         imagens_paths.append(temp_path)
-
-    # Fazer upload das imagens para o Google Drive
+    
     imagens_ids = upload_images_to_drive(imagens_paths, pasta_veiculo_id)
-
-    # Remover arquivos temporários após upload
     for temp_path in imagens_paths:
         os.remove(temp_path)
-
-    # Converter lista de IDs das imagens em string separada por "|"
     imagens_ids_str = "|".join(imagens_ids) if imagens_ids else ""
-
-    # Submeter checklist
+    
+    # 🔹 Submeter checklist
     if st.button("✅ Submeter Checklist"):
-        # Criar checklist no banco de dados
         sucesso = create_checklist(
             id_usuario=user_id,
             tipo=tipo_checklist,
@@ -115,15 +106,13 @@ def checklist_create_screen():
             vidros_retrovisores_ok=vidros_retrovisores_ok,
             itens_seguranca_ok=itens_seguranca_ok,
             observacoes=observacoes,
-            fotos=imagens_ids_str  # Agora as fotos são salvas no Google Drive
+            fotos=imagens_ids_str
         )
-
+        
         if sucesso:
-            # Atualizar o KM do veículo no banco de dados
             update_veiculos_KM(placa, km_informado)
-
-            # Verificar se há alertas para enviar e-mail
-            if not (pneus_ok and farois_setas_ok and freios_ok and oleo_ok and vidros_retrovisores_ok and itens_seguranca_ok):
+            
+            if not all([pneus_ok, farois_setas_ok, freios_ok, oleo_ok, vidros_retrovisores_ok, itens_seguranca_ok]):
                 problemas = []
                 if not pneus_ok: problemas.append("🛞 Pneus desgastados")
                 if not farois_setas_ok: problemas.append("💡 Faróis ou setas com defeito")
@@ -131,7 +120,7 @@ def checklist_create_screen():
                 if not oleo_ok: problemas.append("🛢️ Nível do óleo inadequado")
                 if not vidros_retrovisores_ok: problemas.append("🚗 Vidros ou retrovisores desalinhados")
                 if not itens_seguranca_ok: problemas.append("🦺 Itens de segurança incompletos")
-
+                
                 email_mensagem = f"""
                 🚨 **Alerta de Problema no Veículo**
                 - 📌 **Placa:** {placa}
@@ -140,16 +129,12 @@ def checklist_create_screen():
                 {"\n".join(problemas)}
                 - 👤 **Usuário:** {st.session_state['user_id']}
                 """
-
                 send_email_alert(f"⚠ Alerta de Problema no Veículo {placa}", email_mensagem)
-
+            
             st.success("✅ Checklist submetido com sucesso!")
-
             st.session_state["km_atual_aux"] = km_informado
-
         else:
             st.error("❌ Erro ao submeter checklist. Tente novamente.")
 
-# Executar a tela se for o script principal
 if __name__ == "__main__":
     checklist_create_screen()
