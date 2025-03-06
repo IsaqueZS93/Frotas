@@ -1,7 +1,6 @@
 import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam adicionados corretamente
 import streamlit as st
 import os
-import time
 import sqlite3
 
 from backend.database.db_fleet import create_database
@@ -30,44 +29,41 @@ hide_menu_style = """
 """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
 
-# 🔹 Função para listar todos os arquivos dentro da nuvem Streamlit
-def list_all_files():
-    """Lista todos os arquivos e diretórios disponíveis no ambiente da nuvem Streamlit."""
-    files_found = []
-    for root, dirs, files in os.walk("/"):
-        for file in files:
-            file_path = os.path.join(root, file)
-            files_found.append(file_path)
-    return files_found
-
-# 🔹 Caminho do banco de dados
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_FOLDER = os.path.join(BASE_DIR, "backend", "database")
+# 🔹 Definir um diretório seguro para armazenar o banco de dados
+BASE_DIR = os.getcwd()  # Diretório de trabalho atual
+DB_FOLDER = os.path.join(BASE_DIR, "database")
 DB_PATH = os.path.join(DB_FOLDER, "fleet_management.db")
 
 # 🔹 Criar diretório se não existir
 if not os.path.exists(DB_FOLDER):
     os.makedirs(DB_FOLDER, exist_ok=True)
 
-# 🔹 Debug: Mostrar caminho do banco
-st.write(f"📂 Tentando localizar o banco de dados em: `{DB_PATH}`")
-
-# 🔹 Criar banco de dados se não existir
+# 🔹 Verificar se o banco de dados existe
 if not os.path.exists(DB_PATH):
     st.warning("⚠️ Banco de dados não encontrado! Criando um novo banco...")
     create_database()
 
-# 🔹 Verificar se conseguimos abrir o banco
+# 🔹 Testar se o banco foi criado corretamente
 if os.path.exists(DB_PATH):
-    st.success(f"✅ Banco de dados encontrado em: `{DB_PATH}`")
+    st.success(f"✅ Banco de dados encontrado e salvo em: `{DB_PATH}`")
 else:
-    st.error("❌ Banco de dados não encontrado! Certifique-se de que o banco foi salvo corretamente.")
+    st.error("❌ Banco de dados **ainda não foi salvo corretamente**! Verifique permissões de escrita.")
 
-# 🔹 Listar todos os arquivos na nuvem para diagnóstico
+# 🔹 Função para listar todos os arquivos dentro do Streamlit
+def list_all_files():
+    """Lista todos os arquivos no ambiente do Streamlit."""
+    files_found = []
+    for root, dirs, files in os.walk(BASE_DIR):
+        for file in files:
+            file_path = os.path.join(root, file)
+            files_found.append(file_path)
+    return files_found
+
+# 🔹 Listar todos os arquivos no sistema para diagnóstico
 st.subheader("🕵️ Arquivos encontrados no sistema:")
 files_list = list_all_files()
 
-# 🔹 Exibir arquivos completos
+# 🔹 Exibir lista completa de arquivos
 if files_list:
     for file in files_list:
         st.write(file)
