@@ -15,6 +15,8 @@ load_dotenv()
 
 # Definir escopo de acesso (permite gerenciar arquivos no Google Drive)
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
+DB_FILE_PATH = "backend/database/fleet_management.db"
+DB_FILE_NAME = "fleet_management.db"
 
 def get_google_drive_service():
     """
