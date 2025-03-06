@@ -1,43 +1,15 @@
 import streamlit as st
-import io
-from googleapiclient.http import MediaIoBaseDownload
-from backend.services.Service_Google_Drive import get_google_drive_service
 
-# 🔹 ID do arquivo que encontramos na listagem
+# 🔹 ID do arquivo no Google Drive
 FILE_ID = "1u-kwDCVRq-fNRRv1NsUbpiqOM8rz_LeW"
 
-def download_file(file_id):
-    """Baixa um arquivo do Google Drive e permite que o usuário faça o download."""
-    try:
-        service = get_google_drive_service()
-        request = service.files().get_media(fileId=file_id)
+# 🔹 Gerar o link de download direto
+DOWNLOAD_URL = f"https://drive.google.com/uc?export=download&id={FILE_ID}"
 
-        file_stream = io.BytesIO()
-        downloader = MediaIoBaseDownload(file_stream, request)
-        done = False
-        while not done:
-            _, done = downloader.next_chunk()
-
-        file_stream.seek(0)  # Volta ao início do stream
-        return file_stream
-
-    except Exception as e:
-        st.error(f"❌ Erro ao baixar o arquivo: {e}")
-        return None
-
-# 🔹 Interface Streamlit
 st.title("📥 Baixar Banco de Dados do Google Drive")
 
-if st.button("🔽 Baixar Banco de Dados"):
-    file_stream = download_file(FILE_ID)
-    
-    if file_stream:
-        st.success("✅ Download concluído! Clique abaixo para baixar o arquivo.")
+st.markdown(f"🔗 [Clique aqui para baixar o banco de dados]( {DOWNLOAD_URL} )", unsafe_allow_html=True)
 
-        # Criar botão de download no Streamlit
-        st.download_button(
-            label="📥 Clique para baixar",
-            data=file_stream,
-            file_name="fleet_management.db",
-            mime="application/x-sqlite3"
-        )
+# 🔹 Criar um botão de download estilizado
+if st.button("📥 Baixar Banco de Dados"):
+    st.success("✅ Clique no link acima para baixar diretamente do Google Drive!")
