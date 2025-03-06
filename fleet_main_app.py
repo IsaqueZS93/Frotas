@@ -2,7 +2,6 @@ import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam adic
 import streamlit as st
 import os
 import time
-import subprocess
 import sqlite3
 
 from backend.database.db_fleet import create_database
@@ -41,7 +40,7 @@ def list_all_files():
             files_found.append(file_path)
     return files_found
 
-# 🔹 Caminho correto do banco de dados
+# 🔹 Caminho do banco de dados
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_FOLDER = os.path.join(BASE_DIR, "backend", "database")
 DB_PATH = os.path.join(DB_FOLDER, "fleet_management.db")
@@ -67,8 +66,11 @@ else:
 # 🔹 Listar todos os arquivos na nuvem para diagnóstico
 st.subheader("🕵️ Arquivos encontrados no sistema:")
 files_list = list_all_files()
+
+# 🔹 Exibir arquivos completos
 if files_list:
-    st.write(files_list)
+    for file in files_list:
+        st.write(file)
 else:
     st.error("❌ Nenhum arquivo encontrado no sistema!")
 
