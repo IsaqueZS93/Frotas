@@ -17,7 +17,7 @@ from frontend.screens.Screen_Abastecimento_List_Edit import abastecimento_list_e
 from frontend.screens.Screen_Dash import screen_dash
 from frontend.screens.Screen_IA import screen_ia  # ✅ Importa a tela do chatbot IA
 
-# Configuração da página e ocultação do menu padrão do Streamlit
+# 🔹 Configuração da página e ocultação do menu padrão do Streamlit
 st.set_page_config(page_title="Gestão de Frotas", layout="wide")
 
 hide_menu_style = """
@@ -29,8 +29,8 @@ hide_menu_style = """
 """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
 
-# Caminho do banco de dados
-DB_PATH = "backend/database/fleet_management.db"
+# 🔹 Caminho do banco de dados
+DB_PATH = os.path.join(os.getcwd(), "backend/database/fleet_management.db")
 
 # 🔹 Criar banco de dados se não existir
 if not os.path.exists(DB_PATH):
@@ -62,7 +62,7 @@ else:
     # 🔹 Exibir botão de backup apenas para ADMINs
     if st.session_state.get("user_type") == "ADMIN":
         st.sidebar.subheader("⚙️ Configurações Avançadas")
-        
+
         # 🔹 Verifica se o banco existe antes de permitir o download
         if os.path.exists(DB_PATH):
             with open(DB_PATH, "rb") as file:
