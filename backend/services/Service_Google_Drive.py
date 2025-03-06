@@ -284,15 +284,66 @@ def download_file(file_id, output_path):
         print(f"❌ Erro ao baixar arquivo: {e}")
         
 def list_files_in_folder(folder_id):
-    """Lista todos os arquivos dentro de uma pasta do Google Drive."""
+    """Lista todos os arquivos dentro da pasta do Google Drive (debug)."""
+    service = get_google_drive_service()
+    if not service:
+        return []
+
     try:
-        service = get_google_drive_service()
-        query = f"'{folder_id}' in parents and trashed=false"
-        results = service.files().list(q=query, fields="files(id, name, webViewLink)").execute()
+        results = service.files().list(
+            q=f"'{folder_id}' in parents and trashed=false",
+            fields="files(id, name)"
+        ).execute()
         return results.get("files", [])
     except Exception as e:
-        print(f"❌ Erro ao listar arquivos na pasta {folder_id}: {e}")
+        st.error(f"❌ Erro ao listar arquivos na pasta: {e}")
         return []
+
+def load_database_into_memory():
+    """Carrega o banco de dados do Google Drive para a memória."""
+
+    service = get_google_drive_service()
+    if not service:
+        return None
+
+    st.write("🔄 Buscando banco de dados no Google Drive...")
+
+    # 🔹 LISTA TODOS OS ARQUIVOS NA PASTA PARA DEBUG
+    files_in_drive = list_files_in_folder(FLEETBD_FOLDER_ID)
+    st.write("📂 Arquivos encontrados na pasta:", files_in_drive)
+
+    # 🔹 TENTAR ENCONTRAR O BANCO EXATO NO DRIVE
+    existing_files = [
+        file for file in files_in_drive if file["name"].strip() == DB_FILE_NAME
+    ]
+
+    if not existing_files:
+        st.error(f"❌ O banco de dados '{DB_FILE_NAME}' não foi encontrado no Google Drive!")
+        return None
+
+    file_id = existing_files[0]["id"]
+    request = service.files().get_media(fileId=file_id)
+
+    file_stream = io.BytesIO()
+    downloader = MediaIoBaseDownload(file_stream, request)
+    done = False
+    while not done:
+        _, done = downloader.next_chunk()
+
+    file_stream.seek(0)  # Retorna ao início do stream
+
+    # Conecta ao banco de dados diretamente da memória
+    conn = sqlite3.connect(":memory:")  # Criar um banco SQLite temporário na RAM
+    with conn:
+        with open("temp_db.sqlite", "wb") as temp_db:
+            temp_db.write(file_stream.read())  # Salva temporariamente para conexão
+
+        temp_conn = sqlite3.connect("temp_db.sqlite")
+        temp_conn.backup(conn)  # Copia os dados para o banco na memória
+        temp_conn.close()
+    
+    st.success("✅ Banco de dados carregado da nuvem para a memória!")
+    return conn
     
 def get_folder_id_by_name(folder_name):
     """Busca o ID de uma pasta pelo nome, se ela já existir no Google Drive."""
