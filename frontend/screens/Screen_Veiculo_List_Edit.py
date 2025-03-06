@@ -1,9 +1,8 @@
-# C:\Users\Novaes Engenharia\github - deploy\Frotas\frontend\screens\Screen_Veiculo_List_Edit.py
-
 import streamlit as st
 import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam adicionados corretamente
 import os
 import tempfile
+from PIL import Image, UnidentifiedImageError
 from backend.db_models.DB_Models_Veiculo import (
     get_all_veiculos, get_veiculo_by_placa, update_veiculo, delete_veiculo, delete_veiculo_por_placa
 )
@@ -47,9 +46,9 @@ def veiculo_list_edit_screen():
             novo_ano_fabricacao = st.number_input("📆 Ano de Fabricação", min_value=1900, max_value=2100, value=veiculo_selecionado["ano_fabricacao"])
             novo_hodometro = st.number_input("📍 KM Atual", min_value=0, step=1, value=veiculo_selecionado["hodometro_atual"])
 
-        # 🔹 Exibição de imagens com `use_container_width`
+        # 🔹 Exibição de imagens com tratamento de erro
         with st.expander("📸 Imagens do Veículo"):
-            imagens_atualizadas = []
+            imagens_validas = []
             
             if veiculo_selecionado["fotos"]:
                 fotos_ids = veiculo_selecionado["fotos"].split("|")
@@ -57,12 +56,15 @@ def veiculo_list_edit_screen():
                     temp_path = os.path.join(tempfile.gettempdir(), f"{veiculo_selecionado['placa']}_imagem_{idx}.jpg")
                     try:
                         download_file(foto_id, temp_path)
-                        imagens_atualizadas.append(temp_path)
+                        with Image.open(temp_path) as img:
+                            imagens_validas.append(temp_path)
+                    except UnidentifiedImageError:
+                        st.error(f"❌ Erro: A imagem {idx} não pôde ser aberta. Pode estar corrompida.")
                     except Exception as e:
-                        st.error(f"❌ Erro ao baixar imagem {idx}: {e}")
-
-                if imagens_atualizadas:
-                    st.image(imagens_atualizadas, caption=[f"Imagem {i+1}" for i in range(len(imagens_atualizadas))], use_container_width=True)
+                        st.error(f"❌ Erro ao baixar/exibir a imagem {idx}: {e}")
+                
+                if imagens_validas:
+                    st.image(imagens_validas, caption=[f"Imagem {i+1}" for i in range(len(imagens_validas))], use_container_width=True)
 
         # 🔹 Botões de ação organizados em colunas
         col3, col4 = st.columns([2, 1])
@@ -74,20 +76,17 @@ def veiculo_list_edit_screen():
                         veiculo_selecionado["id"], veiculo_selecionado["placa"], veiculo_selecionado["renavam"],
                         novo_modelo, novo_ano_fabricacao, nova_capacidade_tanque, novo_hodometro, veiculo_selecionado["fotos"]
                     )
-
                     if sucesso:
                         st.success("✅ Veículo atualizado com sucesso!")
                         st.rerun()
                     else:
                         st.error("❌ Erro ao atualizar veículo. Verifique os dados e tente novamente.")
-
                 except Exception as e:
                     st.error(f"⚠️ Erro inesperado ao salvar alterações: {e}")
 
         with col4:
             if st.button("🗑 Excluir Veículo", use_container_width=True):
                 try:
-                    # Excluir imagens associadas ao veículo
                     if veiculo_selecionado["fotos"]:
                         fotos_ids = veiculo_selecionado["fotos"].split("|")
                         for foto_id in fotos_ids:
@@ -96,14 +95,12 @@ def veiculo_list_edit_screen():
                             except Exception as e:
                                 st.error(f"Erro ao excluir imagem {foto_id}: {e}")
 
-                    # Excluir veículo do banco de dados
                     sucesso = delete_veiculo_por_placa(veiculo_selecionado["placa"])
                     if sucesso:
                         st.success("✅ Veículo excluído com sucesso!")
                         st.rerun()
                     else:
                         st.error("❌ Erro ao excluir veículo do banco de dados.")
-
                 except Exception as e:
                     st.error(f"❌ Erro inesperado ao excluir veículo: {e}")
 
