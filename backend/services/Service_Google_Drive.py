@@ -141,6 +141,30 @@ def load_database_into_memory():
     st.success("✅ Banco de dados carregado da nuvem para a memória!")
     return conn
 
+from backend.services.Service_Google_Drive import get_google_drive_service
+
+def list_files_in_folder2(folder_id):
+    """ Lista todos os arquivos dentro de uma pasta no Google Drive """
+    try:
+        service = get_google_drive_service()
+        query = f"'{folder_id}' in parents and trashed=false"  # 🔹 Busca arquivos dentro da pasta
+        results = service.files().list(q=query, fields="files(id, name)").execute()
+        files = results.get("files", [])
+        
+        if not files:
+            print(f"❌ Nenhum arquivo encontrado na pasta ID: {folder_id}")
+        else:
+            print(f"📂 {len(files)} arquivo(s) encontrado(s) na pasta ID: {folder_id}")
+            for file in files:
+                print(f"  - {file['name']} (ID: {file['id']})")
+
+        return files
+
+    except Exception as e:
+        print(f"❌ Erro ao listar arquivos na pasta {folder_id}: {e}")
+        return []
+
+
 def upload_database():
     """ Envia ou atualiza o banco de dados no Google Drive """
     
