@@ -2,7 +2,7 @@ import streamlit as st
 from backend.services.Service_Google_Drive import list_files_in_folder
 
 # ID da pasta no Google Drive
-FLEETBD_FOLDER_ID = "https://drive.google.com/drive/folders/1TeLkfzLxKCMR060z5kd8uNOXev1qLPda"
+FLEETBD_FOLDER_ID = "1TeLkfzLxKCMR060z5kd8uNOXev1qLPda"
 
 st.title("🔍 Teste de Acesso ao Google Drive")
 
