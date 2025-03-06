@@ -29,8 +29,8 @@ hide_menu_style = """
 """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
 
-# 🔹 Caminho do banco de dados
-DB_PATH = os.path.join(os.getcwd(), "backend/database/fleet_management.db")
+# 🔹 Caminho absoluto do banco de dados
+DB_PATH = os.path.abspath(os.path.join(os.getcwd(), "backend/database/fleet_management.db"))
 
 # 🔹 Criar banco de dados se não existir
 if not os.path.exists(DB_PATH):
