@@ -46,20 +46,19 @@ st.success("✅ Banco de dados encontrado e pronto para uso!")
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 if "user_type" not in st.session_state:
-    st.session_state["user_type"] = "ADMIN"  # ✅ Define ADMIN para garantir acesso ao cadastro
+    st.session_state["user_type"] = None
 if "user_name" not in st.session_state:
-    st.session_state["user_name"] = "Administrador"
-if "show_welcome" not in st.session_state:
-    st.session_state["show_welcome"] = True
-if "first_access" not in st.session_state:
-    st.session_state["first_access"] = True  # ✅ Para controlar o primeiro acesso
+    st.session_state["user_name"] = None
 
-# 🔹 Se for a primeira execução, pula o login e vai direto para o sistema
-if st.session_state["first_access"]:
-    st.session_state["authenticated"] = True  # ✅ Define como autenticado automaticamente
-    st.session_state["user_type"] = "ADMIN"  # ✅ Permite acesso às telas ADMIN
-    st.session_state["user_name"] = "Administrador"
-    st.session_state["first_access"] = False  # ✅ Desativa a lógica de primeira execução
+# 🔹 Sempre inicia na tela de login, a menos que o usuário já tenha feito login
+if not st.session_state["authenticated"]:
+    user_info = login_screen()
+
+    if user_info:
+        st.session_state["authenticated"] = True
+        st.session_state["user_name"] = user_info["user_name"]
+        st.session_state["user_type"] = user_info["user_type"]
+        st.rerun()  # 🔄 Redireciona para o menu após login bem-sucedido
 
 # 🔹 Exibir usuário logado no menu lateral
 st.sidebar.write(f"👤 Usuário logado: {st.session_state.get('user_name', 'Desconhecido')}")
@@ -123,9 +122,7 @@ elif menu_option == "Chatbot IA 🤖":
     screen_ia()  # Chama a tela do chatbot IA
 elif menu_option == "Logout":
     st.session_state.clear()  # 🔥 Limpa todas as variáveis de sessão para resetar tudo
-    st.session_state["authenticated"] = False
-    st.session_state["first_access"] = True  # ✅ Quando deslogar, volta a pedir login na próxima vez
-    st.success("✅ Você saiu do sistema com sucesso! Redirecionando... 🔄")
+    st.success("✅ Você saiu do sistema com sucesso! Redirecionando para login... 🔄")
     st.rerun()
 else:
     st.warning("Você não tem permissão para acessar esta página.")
