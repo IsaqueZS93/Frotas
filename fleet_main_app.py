@@ -1,7 +1,8 @@
 import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam carregados corretamente
 import streamlit as st
 import time  # 🔹 Para controle do redirecionamento automático
-from backend.services.Service_Google_Drive import download_database  # 🔹 Importa a função de download
+import os
+from backend.services.Service_Google_Drive import download_database
 from backend.database.db_fleet import create_database
 from frontend.screens.Screen_Login import login_screen
 from frontend.screens.Screen_User_Create import user_create_screen
@@ -40,6 +41,9 @@ if "user_name" not in st.session_state:
     st.session_state["user_name"] = None  # ✅ Salvar nome do usuário
 if "show_welcome" not in st.session_state:
     st.session_state["show_welcome"] = True  # Indica se deve mostrar a tela de boas-vindas
+
+# Caminho da pasta de Downloads do usuário
+DOWNLOAD_PATH = os.path.expanduser("~/Downloads/fleet_management.db")
 
 # Se o usuário NÃO estiver autenticado, exibir tela de login
 if not st.session_state["authenticated"]:
@@ -98,8 +102,11 @@ else:
             st.sidebar.subheader("⚙️ Configurações Avançadas")
             if st.sidebar.button("📥 Baixar Backup do Banco"):
                 st.write("🔄 Baixando backup do banco de dados...")
-                download_database()
-                st.success("✅ Backup do banco de dados baixado com sucesso!")
+                
+                # Baixar o banco de dados diretamente para a pasta Downloads
+                download_database(DOWNLOAD_PATH)
+                
+                st.success(f"✅ Backup do banco de dados salvo em: {DOWNLOAD_PATH}")
 
         if menu_option == "Gerenciar Perfil":
             user_control_screen()
