@@ -35,6 +35,9 @@ st.markdown(hide_menu_style, unsafe_allow_html=True)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "backend", "database", "fleet_management.db")
 
+# 🔹 Debug: Mostrar caminho do banco
+st.write(f"📂 Tentando localizar o banco de dados em: `{DB_PATH}`")
+
 # 🔹 Criar banco de dados se não existir
 if not os.path.exists(DB_PATH):
     st.warning("⚠️ Banco de dados não encontrado! Criando um novo banco...")
@@ -46,6 +49,7 @@ try:
         st.success("✅ Banco de dados encontrado e pronto para download.")
 except FileNotFoundError:
     st.error("❌ Banco de dados não encontrado! Ele pode estar rodando em memória.")
+    # Tentar salvar do SQLite para um arquivo
     try:
         conn = sqlite3.connect(":memory:")
         backup_conn = sqlite3.connect(DB_PATH)
@@ -56,18 +60,18 @@ except FileNotFoundError:
     except Exception as e:
         st.error(f"⚠️ Falha ao exportar o banco de dados: {e}")
 
+# 🔹 Carregar credenciais do GitHub do secrets.toml
+GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", None)
+GITHUB_REPO = st.secrets.get("GITHUB_REPO", None)
+
+if not GITHUB_TOKEN or not GITHUB_REPO:
+    st.error("⚠️ Erro: Token do GitHub ou Repositório não configurado nos Secrets do Streamlit!")
+
 # 🔹 Função para enviar o banco para o GitHub
 def push_to_github():
     """Atualiza o banco de dados no GitHub automaticamente"""
     if not os.path.exists(DB_PATH):
         st.error("❌ Banco de dados não encontrado para upload!")
-        return False
-
-    GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"] if "GITHUB_TOKEN" in st.secrets else None
-    GITHUB_REPO = st.secrets["GITHUB_REPO"] if "GITHUB_REPO" in st.secrets else None
-
-    if not GITHUB_TOKEN or not GITHUB_REPO:
-        st.error("⚠️ Erro: Token do GitHub ou Repositório não configurado nos Secrets do Streamlit!")
         return False
 
     try:
