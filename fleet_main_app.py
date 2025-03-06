@@ -46,6 +46,9 @@ st.success("✅ Banco de dados encontrado e pronto para uso!")
 # 🔹 Criar usuário inicial caso necessário
 def create_default_user():
     """Cria um usuário padrão caso nenhum esteja cadastrado."""
+    default_user = st.secrets.get("DEFAULT_USER", "admin")
+    default_password = st.secrets.get("DEFAULT_PASSWORD", "admin123")
+
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
@@ -53,8 +56,6 @@ def create_default_user():
     user_count = cursor.fetchone()[0]
 
     if user_count == 0:
-        default_user = "admin"
-        default_password = "admin123"
         cursor.execute("""
             INSERT INTO users (nome_completo, data_nascimento, email, usuario, cnh, contato, validade_cnh, funcao, empresa, senha, tipo)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -69,28 +70,6 @@ def create_default_user():
 
 create_default_user()
 
-# 🔹 Função para listar os usuários cadastrados
-def listar_usuarios():
-    """Lista todos os usuários cadastrados no banco de dados."""
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        
-        cursor.execute("SELECT id, nome_completo, email, usuario, tipo FROM users")
-        usuarios = cursor.fetchall()
-        
-        conn.close()
-        
-        if usuarios:
-            st.write("### 📋 Usuários Cadastrados no Banco de Dados:")
-            for usuario in usuarios:
-                st.write(f"👤 **ID:** {usuario[0]} | **Nome:** {usuario[1]} | **Email:** {usuario[2]} | **Usuário:** {usuario[3]} | **Tipo:** {usuario[4]}")
-        else:
-            st.warning("⚠️ Nenhum usuário encontrado no banco de dados.")
-    
-    except Exception as e:
-        st.error(f"❌ Erro ao listar usuários: {e}")
-
 # 🔹 Inicializa a sessão do usuário
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
@@ -98,8 +77,15 @@ if "user_type" not in st.session_state:
     st.session_state["user_type"] = None
 if "user_name" not in st.session_state:
     st.session_state["user_name"] = None
-if "show_welcome" not in st.session_state:
-    st.session_state["show_welcome"] = True
+if "first_access" not in st.session_state:
+    st.session_state["first_access"] = True  # ✅ Primeira execução, pula login
+
+# 🔹 Se for a primeira vez, pula a tela de login e autentica como admin automaticamente
+if st.session_state["first_access"]:
+    st.session_state["authenticated"] = True
+    st.session_state["user_name"] = "Administrador"
+    st.session_state["user_type"] = "ADMIN"
+    st.session_state["first_access"] = False  # Depois da primeira vez, login será exigido
 
 # 🔹 Se o usuário NÃO estiver autenticado, exibir tela de login
 if not st.session_state["authenticated"]:
@@ -138,11 +124,6 @@ else:
             st.success("✅ Banco de dados atualizado com sucesso! Reinicie o sistema.")
             st.rerun()
 
-    # 🔹 Botão para listar usuários cadastrados (visível apenas para ADMINs)
-    if st.session_state.get("user_type") == "ADMIN":
-        if st.button("🔍 Listar Usuários Cadastrados"):
-            listar_usuarios()
-
     # 🔹 Menu lateral para navegação
     menu_option = st.sidebar.radio(
         "Navegação",
@@ -158,6 +139,6 @@ else:
         st.session_state["user_id"] = None
         st.session_state["user_type"] = None
         st.session_state["user_name"] = None
-        st.session_state["show_welcome"] = True
+        st.session_state["first_access"] = True  # ✅ Quando deslogar, volta a pedir login na próxima vez
         st.success("Você saiu do sistema. Redirecionando para a tela de login... 🔄")
         st.rerun()
