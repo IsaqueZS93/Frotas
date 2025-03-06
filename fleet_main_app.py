@@ -31,9 +31,14 @@ hide_menu_style = """
 """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
 
-# 🔹 Caminho do banco de dados
+# 🔹 Caminho correto do banco de dados
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "backend", "database", "fleet_management.db")
+DB_FOLDER = os.path.join(BASE_DIR, "backend", "database")
+DB_PATH = os.path.join(DB_FOLDER, "fleet_management.db")
+
+# 🔹 Criar diretório se não existir
+if not os.path.exists(DB_FOLDER):
+    os.makedirs(DB_FOLDER, exist_ok=True)
 
 # 🔹 Debug: Mostrar caminho do banco
 st.write(f"📂 Tentando localizar o banco de dados em: `{DB_PATH}`")
@@ -45,9 +50,9 @@ if not os.path.exists(DB_PATH):
 
 # 🔹 Verificar se conseguimos abrir o banco
 if os.path.exists(DB_PATH):
-    st.success("✅ Banco de dados encontrado e pronto para download.")
+    st.success("✅ Banco de dados encontrado e pronto para uso.")
 else:
-    st.error("❌ Banco de dados não encontrado! Ele pode estar rodando em memória.")
+    st.error("❌ Banco de dados não encontrado! Certifique-se de que o banco foi salvo corretamente.")
 
 # 🔹 Carregar credenciais do GitHub do secrets.toml
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN")
@@ -55,6 +60,8 @@ GITHUB_REPO = st.secrets.get("GITHUB_REPO")
 
 if not GITHUB_TOKEN or not GITHUB_REPO:
     st.error("⚠️ Erro: Token do GitHub ou Repositório não configurado nos Secrets do Streamlit!")
+else:
+    st.success("✅ Configuração do GitHub carregada corretamente.")
 
 # 🔹 Função para enviar o banco para o GitHub
 def push_to_github():
