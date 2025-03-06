@@ -2,6 +2,7 @@ import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam adic
 import streamlit as st
 import os
 import time
+import sqlite3
 from backend.database.db_fleet import create_database, DB_PATH
 
 from frontend.screens.Screen_Login import login_screen
@@ -42,6 +43,33 @@ if not os.path.exists(DB_PATH):
 
 st.success("✅ Banco de dados encontrado e pronto para uso!")
 
+# 🔹 Criar usuário inicial caso necessário
+def create_default_user():
+    """Cria um usuário padrão caso nenhum esteja cadastrado."""
+    default_user = st.secrets.get("DEFAULT_USER", "admin")
+    default_password = st.secrets.get("DEFAULT_PASSWORD", "admin123")
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT COUNT(*) FROM users")
+    user_count = cursor.fetchone()[0]
+
+    if user_count == 0:
+        cursor.execute("""
+            INSERT INTO users (nome_completo, data_nascimento, email, usuario, cnh, contato, validade_cnh, funcao, empresa, senha, tipo)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            "Administrador", "01/01/2000", "admin@email.com", default_user, "00000000000", "00000000000", "01/01/2030",
+            "Gestor", "Frotas Novaes", default_password, "ADMIN"
+        ))
+        conn.commit()
+        st.success(f"✅ Usuário inicial criado: {default_user} / {default_password}")
+
+    conn.close()
+
+create_default_user()
+
 # 🔹 Inicializa a sessão do usuário
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
@@ -76,6 +104,18 @@ else:
                 file_name="fleet_management.db",
                 mime="application/octet-stream"
             )
+
+        # 🔹 Upload do banco de dados
+        uploaded_file = st.sidebar.file_uploader("📤 Enviar um novo banco de dados", type=["db"])
+        if uploaded_file is not None:
+            new_db_path = os.path.join(os.path.dirname(DB_PATH), "fleet_management_uploaded.db")
+            with open(new_db_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+
+            # Substituir o banco de dados principal pelo novo
+            os.replace(new_db_path, DB_PATH)
+            st.success("✅ Banco de dados atualizado com sucesso! Reinicie o sistema.")
+            st.rerun()
 
     # 🔹 Menu lateral para navegação
     menu_option = st.sidebar.radio(
