@@ -1,20 +1,18 @@
-import streamlit as st
-from backend.services.Service_Google_Drive import list_files_in_folder2
+from backend.services.Service_Google_Drive import search_files
 
-# ID da pasta onde o banco de dados foi armazenado
-BDFROTAS_FOLDER_ID = "1dPaautky1YLzYiH1IOaxgItu_GZSaxcO"
+# 🔍 Definir a query para buscar o arquivo no Google Drive
+file_name = "fleet_management.db"
+query = f"name='{file_name}' and trashed=false"
 
-st.title("🔍 Teste Avançado de Busca no Google Drive")
-st.write(f"📂 Verificando arquivos na pasta ID: {BDFROTAS_FOLDER_ID}...")
+# 🔎 Executar a busca
+st.write("🔍 Buscando arquivos no Google Drive...")
+files_found = search_files(query)
 
-# Teste de busca
-arquivos = list_files_in_folder2(BDFROTAS_FOLDER_ID)
-
-if arquivos:
-    st.success(f"✅ {len(arquivos)} arquivo(s) encontrado(s) na pasta!")
-    for arquivo in arquivos:
-        st.write(f"📂 {arquivo['name']} - ID: {arquivo['id']}")
+# 📌 Exibir os resultados encontrados
+if files_found:
+    st.success(f"✅ {len(files_found)} arquivo(s) encontrado(s) com o nome '{file_name}':")
+    for file in files_found:
+        st.write(f"📂 Nome: {file['name']} - ID: {file['id']} - Link: {file.get('webViewLink', 'Sem link')}")
 else:
-    st.error(f"❌ Nenhum arquivo encontrado na pasta ID: {BDFROTAS_FOLDER_ID}!")
-    st.warning("🔹 Verifique se o arquivo está na pasta e se a conta de serviço tem permissão.")
-
+    st.error(f"❌ Nenhum arquivo encontrado com o nome '{file_name}' no Google Drive!")
+    st.warning("🔹 Verifique se o arquivo está na pasta correta e se a conta de serviço tem permissão.")
