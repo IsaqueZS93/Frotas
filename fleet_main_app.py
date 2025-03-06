@@ -2,8 +2,8 @@ import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam adic
 import streamlit as st
 import os
 import time
+import subprocess
 from backend.database.db_fleet import create_database
-
 from frontend.screens.Screen_Login import login_screen
 from frontend.screens.Screen_User_Create import user_create_screen
 from frontend.screens.Screen_User_List_Edit import user_list_edit_screen
@@ -17,7 +17,7 @@ from frontend.screens.Screen_Abastecimento_List_Edit import abastecimento_list_e
 from frontend.screens.Screen_Dash import screen_dash
 from frontend.screens.Screen_IA import screen_ia  # ✅ Importa a tela do chatbot IA
 
-# 🔹 Configuração da página e ocultação do menu padrão do Streamlit
+# Configuração da página e ocultação do menu padrão do Streamlit
 st.set_page_config(page_title="Gestão de Frotas", layout="wide")
 
 hide_menu_style = """
@@ -29,13 +29,42 @@ hide_menu_style = """
 """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
 
-# 🔹 Caminho absoluto do banco de dados
+# Caminho do banco de dados
 DB_PATH = os.path.abspath(os.path.join(os.getcwd(), "backend/database/fleet_management.db"))
+
+# Variáveis de ambiente para acesso ao GitHub
+GITHUB_REPO = os.getenv("GITHUB_REPO")  # Exemplo: "frotasnovaes/FleetManagement"
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
 # 🔹 Criar banco de dados se não existir
 if not os.path.exists(DB_PATH):
     st.warning("⚠️ Banco de dados não encontrado! Criando um novo banco...")
     create_database()
+
+# 🔹 Função para enviar o banco para o GitHub
+def push_to_github():
+    """Atualiza o banco de dados no GitHub automaticamente"""
+    try:
+        if not os.path.exists(DB_PATH):
+            st.error("❌ Banco de dados não encontrado para upload!")
+            return False
+
+        # Configurar repositório remoto usando o token
+        repo_url = f"https://{GITHUB_TOKEN}@github.com/{GITHUB_REPO}.git"
+
+        # Executa os comandos Git para commit e push
+        subprocess.run(["git", "config", "--global", "user.email", "streamlit@fleet.com"], check=True)
+        subprocess.run(["git", "config", "--global", "user.name", "Streamlit AutoCommit"], check=True)
+        subprocess.run(["git", "add", DB_PATH], check=True)
+        subprocess.run(["git", "commit", "-m", "🔄 Atualização automática do banco de dados"], check=True)
+        subprocess.run(["git", "push", repo_url, "main"], check=True)
+
+        st.success("✅ Banco de dados atualizado no GitHub com sucesso!")
+        return True
+
+    except subprocess.CalledProcessError as e:
+        st.error(f"❌ Erro ao enviar para o GitHub: {e}")
+        return False
 
 # 🔹 Inicializa a sessão do usuário
 if "authenticated" not in st.session_state:
@@ -63,17 +92,9 @@ else:
     if st.session_state.get("user_type") == "ADMIN":
         st.sidebar.subheader("⚙️ Configurações Avançadas")
 
-        # 🔹 Verifica se o banco existe antes de permitir o download
-        if os.path.exists(DB_PATH):
-            with open(DB_PATH, "rb") as file:
-                st.sidebar.download_button(
-                    label="📥 Baixar Backup do Banco",
-                    data=file,
-                    file_name="fleet_management.db",
-                    mime="application/octet-stream"
-                )
-        else:
-            st.sidebar.error("❌ Banco de dados não encontrado para download!")
+        # 🔹 Botão para fazer upload automático do banco de dados para o GitHub
+        if st.sidebar.button("📤 Atualizar Banco no GitHub"):
+            push_to_github()
 
     # 🔹 Menu lateral para navegação
     st.sidebar.title("Gestão de Frotas 🚛")
