@@ -1,9 +1,9 @@
 import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam adicionados corretamente
 import streamlit as st
 import os
-import sqlite3
+import time
+from backend.database.db_fleet import create_database, DB_PATH
 
-from backend.database.db_fleet import create_database
 from frontend.screens.Screen_Login import login_screen
 from frontend.screens.Screen_User_Create import user_create_screen
 from frontend.screens.Screen_User_List_Edit import user_list_edit_screen
@@ -29,46 +29,18 @@ hide_menu_style = """
 """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
 
-# 🔹 Definir um diretório seguro para armazenar o banco de dados
-BASE_DIR = os.getcwd()  # Diretório de trabalho atual
-DB_FOLDER = os.path.join(BASE_DIR, "database")
-DB_PATH = os.path.join(DB_FOLDER, "fleet_management.db")
-
-# 🔹 Criar diretório se não existir
-if not os.path.exists(DB_FOLDER):
-    os.makedirs(DB_FOLDER, exist_ok=True)
-
-# 🔹 Verificar se o banco de dados existe
+# 🔹 Criar e verificar o banco de dados antes de iniciar
+st.write(f"📂 Tentando localizar o banco de dados em: `{DB_PATH}`")
 if not os.path.exists(DB_PATH):
     st.warning("⚠️ Banco de dados não encontrado! Criando um novo banco...")
     create_database()
 
-# 🔹 Testar se o banco foi criado corretamente
-if os.path.exists(DB_PATH):
-    st.success(f"✅ Banco de dados encontrado e salvo em: `{DB_PATH}`")
-else:
-    st.error("❌ Banco de dados **ainda não foi salvo corretamente**! Verifique permissões de escrita.")
+# 🔹 Verifica se o banco foi criado corretamente
+if not os.path.exists(DB_PATH):
+    st.error("❌ Banco de dados não encontrado! O sistema não pode continuar.")
+    st.stop()
 
-# 🔹 Função para listar todos os arquivos dentro do Streamlit
-def list_all_files():
-    """Lista todos os arquivos no ambiente do Streamlit."""
-    files_found = []
-    for root, dirs, files in os.walk(BASE_DIR):
-        for file in files:
-            file_path = os.path.join(root, file)
-            files_found.append(file_path)
-    return files_found
-
-# 🔹 Listar todos os arquivos no sistema para diagnóstico
-st.subheader("🕵️ Arquivos encontrados no sistema:")
-files_list = list_all_files()
-
-# 🔹 Exibir lista completa de arquivos
-if files_list:
-    for file in files_list:
-        st.write(file)
-else:
-    st.error("❌ Nenhum arquivo encontrado no sistema!")
+st.success("✅ Banco de dados encontrado e pronto para uso!")
 
 # 🔹 Inicializa a sessão do usuário
 if "authenticated" not in st.session_state:
@@ -92,21 +64,18 @@ else:
     st.sidebar.write(f"👤 Usuário logado: {st.session_state.get('user_name', 'Desconhecido')}")
     st.sidebar.write(f"🔑 Permissão: {st.session_state.get('user_type', 'Desconhecido')}")
 
-    # 🔹 Exibir botão de backup e download apenas para ADMINs
+    # 🔹 Exibir botão de backup para ADMINs
     if st.session_state.get("user_type") == "ADMIN":
         st.sidebar.subheader("⚙️ Configurações Avançadas")
 
-        # 🔹 Download direto do banco
-        if os.path.exists(DB_PATH):
-            with open(DB_PATH, "rb") as file:
-                st.sidebar.download_button(
-                    label="📥 Baixar Banco de Dados",
-                    data=file,
-                    file_name="fleet_management.db",
-                    mime="application/octet-stream"
-                )
-        else:
-            st.sidebar.error("❌ Banco de dados não encontrado para download!")
+        # 🔹 Botão para download do banco de dados
+        with open(DB_PATH, "rb") as file:
+            st.sidebar.download_button(
+                label="📥 Baixar Backup do Banco",
+                data=file,
+                file_name="fleet_management.db",
+                mime="application/octet-stream"
+            )
 
     # 🔹 Menu lateral para navegação
     menu_option = st.sidebar.radio(
