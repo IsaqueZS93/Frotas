@@ -1,18 +1,17 @@
 import streamlit as st
 import io
-import os
 from googleapiclient.http import MediaIoBaseDownload
 from backend.services.Service_Google_Drive import get_google_drive_service
 
-# 🔹 ID do arquivo no Google Drive (substitua pelo correto se necessário)
-FILE_ID = "1u-kwDCVRq-fNRRv1NsUbpiqOM8rz_LeW"  # ID real do arquivo
+# 🔹 ID do arquivo correto no Google Drive
+FILE_ID = "1u-kwDCVRq-fNRRv1NsUbpiqOM8rz_LeW"
 
 def download_file(file_id):
     """Baixa um arquivo do Google Drive e permite que o usuário faça o download."""
     try:
         service = get_google_drive_service()
         request = service.files().get_media(fileId=file_id)
-        
+
         file_stream = io.BytesIO()
         downloader = MediaIoBaseDownload(file_stream, request)
         done = False
@@ -20,7 +19,6 @@ def download_file(file_id):
             _, done = downloader.next_chunk()
 
         file_stream.seek(0)  # Volta ao início do stream
-
         return file_stream
 
     except Exception as e:
@@ -35,8 +33,8 @@ if st.button("🔽 Baixar Banco de Dados"):
     
     if file_stream:
         st.success("✅ Download concluído! Clique abaixo para baixar o arquivo.")
-        
-        # Oferecer o download para o usuário
+
+        # Criar botão de download no Streamlit
         st.download_button(
             label="📥 Clique para baixar",
             data=file_stream,
