@@ -1,13 +1,18 @@
-# C:\Users\Novaes Engenharia\github - deploy\Frotas\backend\database\db_fleet.py
-
 import sqlite3
+import os
 
-# Nome do banco de dados
-DB_NAME = "fleet_management.db"
+# 🔹 Definir o caminho absoluto do banco de dados
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Diretório do script
+DB_FOLDER = os.path.join(BASE_DIR, "database")  # Pasta correta para salvar o banco
+DB_PATH = os.path.join(DB_FOLDER, "fleet_management.db")  # Caminho completo do banco
+
+# 🔹 Criar a pasta se não existir
+if not os.path.exists(DB_FOLDER):
+    os.makedirs(DB_FOLDER, exist_ok=True)
 
 def get_db_connection():
     """Abre uma conexão com o banco de dados e permite acessar colunas pelo nome."""
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(DB_PATH)  # Usando o caminho absoluto
     conn.row_factory = sqlite3.Row  # Permite acessar os resultados como dicionários
     return conn
 
@@ -117,7 +122,7 @@ def column_exists(table_name, column_name):
 
 if __name__ == "__main__":
     create_database()
-    print("✅ Banco de dados atualizado com sucesso!")
+    print(f"✅ Banco de dados atualizado com sucesso e salvo em: {DB_PATH}")
 
     # Teste da função column_exists
     tabela = "abastecimentos"
