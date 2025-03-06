@@ -1,8 +1,10 @@
 import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam adicionados corretamente
 import streamlit as st
 import os
+import time
 import sqlite3
 from backend.database.db_fleet import create_database, DB_PATH
+
 from frontend.screens.Screen_Login import login_screen
 from frontend.screens.Screen_User_Create import user_create_screen
 from frontend.screens.Screen_User_List_Edit import user_list_edit_screen
@@ -16,17 +18,17 @@ from frontend.screens.Screen_Abastecimento_List_Edit import abastecimento_list_e
 from frontend.screens.Screen_Dash import screen_dash
 from frontend.screens.Screen_IA import screen_ia  # ✅ Importa a tela do chatbot IA
 
-# Configuração da página
+# Configuração da página e ocultação do menu padrão do Streamlit
 st.set_page_config(page_title="Gestão de Frotas", layout="wide")
 
-# Oculta menu e rodapé do Streamlit
-st.markdown("""
+hide_menu_style = """
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     </style>
-""", unsafe_allow_html=True)
+"""
+st.markdown(hide_menu_style, unsafe_allow_html=True)
 
 # 🔹 Criar e verificar o banco de dados antes de iniciar
 st.write(f"📂 Tentando localizar o banco de dados em: `{DB_PATH}`")
@@ -41,33 +43,53 @@ if not os.path.exists(DB_PATH):
 
 st.success("✅ Banco de dados encontrado e pronto para uso!")
 
-# 🔹 Verifica se há usuários cadastrados no banco
-def is_first_access():
-    """Retorna True se não houver usuários cadastrados no banco de dados."""
+# 🔹 Criar usuário inicial caso necessário
+def create_default_user():
+    """Cria um usuário padrão caso nenhum esteja cadastrado."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT COUNT(*) FROM users")
+    user_count = cursor.fetchone()[0]
+
+    if user_count == 0:
+        default_user = "admin"
+        default_password = "admin123"
+        cursor.execute("""
+            INSERT INTO users (nome_completo, data_nascimento, email, usuario, cnh, contato, validade_cnh, funcao, empresa, senha, tipo)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            "Administrador", "01/01/2000", "admin@email.com", default_user, "00000000000", "00000000000", "01/01/2030",
+            "Gestor", "Frotas Novaes", default_password, "ADMIN"
+        ))
+        conn.commit()
+        st.success(f"✅ Usuário inicial criado: {default_user} / {default_password}")
+
+    conn.close()
+
+create_default_user()
+
+# 🔹 Função para listar os usuários cadastrados
+def listar_usuarios():
+    """Lista todos os usuários cadastrados no banco de dados."""
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
-        # Verificar se a tabela `users` realmente existe
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
-        table_exists = cursor.fetchone()
+        cursor.execute("SELECT id, nome_completo, email, usuario, tipo FROM users")
+        usuarios = cursor.fetchall()
         
-        if not table_exists:
-            st.warning("⚠️ A tabela `users` não existe! Criando banco novamente...")
-            create_database()
-            return True  # Permitir acesso inicial
-        
-        # Contar os usuários cadastrados
-        cursor.execute("SELECT COUNT(*) FROM users")
-        user_count = cursor.fetchone()[0]
         conn.close()
         
-        st.write(f"🔍 Número de usuários no banco: {user_count}")  # Debug no Streamlit
-        
-        return user_count == 0
+        if usuarios:
+            st.write("### 📋 Usuários Cadastrados no Banco de Dados:")
+            for usuario in usuarios:
+                st.write(f"👤 **ID:** {usuario[0]} | **Nome:** {usuario[1]} | **Email:** {usuario[2]} | **Usuário:** {usuario[3]} | **Tipo:** {usuario[4]}")
+        else:
+            st.warning("⚠️ Nenhum usuário encontrado no banco de dados.")
+    
     except Exception as e:
-        st.error(f"❌ Erro ao verificar usuários: {e}")
-        return False
+        st.error(f"❌ Erro ao listar usuários: {e}")
 
 # 🔹 Inicializa a sessão do usuário
 if "authenticated" not in st.session_state:
@@ -79,19 +101,13 @@ if "user_name" not in st.session_state:
 if "show_welcome" not in st.session_state:
     st.session_state["show_welcome"] = True
 
-# 🔹 Se for o primeiro acesso, permitir login automático
+# 🔹 Se o usuário NÃO estiver autenticado, exibir tela de login
 if not st.session_state["authenticated"]:
-    if is_first_access():
-        st.warning("⚠️ Nenhum usuário cadastrado. Acesso liberado sem senha na primeira execução!")
-        st.session_state["authenticated"] = True
-        st.session_state["user_type"] = "ADMIN"
-        st.session_state["user_name"] = "Administrador"
+    user_name = login_screen()
+    
+    if user_name:
+        st.session_state["user_name"] = user_name
         st.rerun()
-    else:
-        user_name = login_screen()
-        if user_name:
-            st.session_state["user_name"] = user_name
-            st.rerun()
 else:
     # 🔹 Exibir usuário logado no menu lateral
     st.sidebar.write(f"👤 Usuário logado: {st.session_state.get('user_name', 'Desconhecido')}")
@@ -122,10 +138,15 @@ else:
             st.success("✅ Banco de dados atualizado com sucesso! Reinicie o sistema.")
             st.rerun()
 
+    # 🔹 Botão para listar usuários cadastrados (visível apenas para ADMINs)
+    if st.session_state.get("user_type") == "ADMIN":
+        if st.button("🔍 Listar Usuários Cadastrados"):
+            listar_usuarios()
+
     # 🔹 Menu lateral para navegação
     menu_option = st.sidebar.radio(
         "Navegação",
-        ["Gerenciar Perfil", "Cadastrar Usuário", "Gerenciar Usuários", "Cadastrar Veículo",
+        ["Gerenciar Perfil", "Cadastrar Usuário", "Gerenciar Usuários", "Cadastrar Veículo", 
          "Gerenciar Veículos", "Novo Checklist", "Gerenciar Checklists", "Novo Abastecimento",
          "Gerenciar Abastecimentos", "Dashboards", "Chatbot IA 🤖", "Logout"]
     )
