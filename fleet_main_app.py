@@ -37,14 +37,21 @@ if "authenticated" not in st.session_state:
 if "user_type" not in st.session_state:
     st.session_state["user_type"] = None
 if "user_name" not in st.session_state:
-    st.session_state["user_name"] = None
+    st.session_state["user_name"] = None  # ✅ Adicionando nome do usuário na sessão
 if "show_welcome" not in st.session_state:
     st.session_state["show_welcome"] = True  # Indica se deve mostrar a tela de boas-vindas
 
 # Se o usuário NÃO estiver autenticado, exibir tela de login
 if not st.session_state["authenticated"]:
-    login_screen()
+    user_name = login_screen()  # ✅ Supondo que login_screen retorna o nome do usuário ao fazer login
+    
+    if user_name:
+        st.session_state["user_name"] = user_name  # ✅ Armazena o nome do usuário na sessão
+        st.rerun()
 else:
+    # Debug: Mostra o nome do usuário logado
+    st.sidebar.write(f"👤 Usuário logado: {st.session_state.get('user_name')}")  # ✅ Verificando se o nome está salvo corretamente
+
     # Exibir a tela de boas-vindas antes do menu lateral
     if st.session_state["show_welcome"]:
         st.title("🚛 Sistema de Gestão de Frotas!")
@@ -85,7 +92,7 @@ else:
             ]
         )
 
-        # Se o usuário for "Isaque.Z", exibir o botão para baixar backup do banco
+        # ✅ Exibir botão apenas se o usuário for "Isaque.Z"
         if st.session_state.get("user_name") == "Isaque.Z":
             st.sidebar.subheader("⚙️ Configurações Avançadas")
             if st.sidebar.button("📥 Baixar Backup do Banco"):
