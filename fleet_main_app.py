@@ -1,59 +1,19 @@
-import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam carregados corretamente
 import streamlit as st
-import time
-import sqlite3
-from backend.services.Service_Google_Drive import load_database_into_memory
-from frontend.screens.Screen_Login import login_screen
-from frontend.screens.Screen_User_Create import user_create_screen
-from frontend.screens.Screen_User_List_Edit import user_list_edit_screen
-from frontend.screens.Screen_User_Control import user_control_screen
-from frontend.screens.Screen_Veiculo_Create import veiculo_create_screen
-from frontend.screens.Screen_Veiculo_List_Edit import veiculo_list_edit_screen
-from frontend.screens.Screen_Checklists_Create import checklist_create_screen
-from frontend.screens.Screen_Checklist_lists import checklist_list_screen
-from frontend.screens.Screen_Abastecimento_Create import abastecimento_create_screen
-from frontend.screens.Screen_Abastecimento_List_Edit import abastecimento_list_edit_screen
-from frontend.screens.Screen_Dash import screen_dash
-from frontend.screens.Screen_IA import screen_ia  # ✅ Importar a tela do chatbot IA
+from backend.services.Service_Google_Drive import list_files_in_folder
 
-# Configuração da página e ocultação do menu padrão do Streamlit
-st.set_page_config(page_title="Gestão de Frotas", layout="wide")
+# ID da pasta no Google Drive
+FLEETBD_FOLDER_ID = "1TeLkfzLxKCMR060z5kd8uNOXev1qLPda"
 
-hide_menu_style = """
-    <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    </style>
-"""
-st.markdown(hide_menu_style, unsafe_allow_html=True)
+st.title("🔍 Teste de Acesso ao Google Drive")
 
-# 🔄 Carregar banco de dados do Google Drive para a memória
-st.write("🔄 Carregando banco de dados do Google Drive...")
+st.write("📂 Verificando acesso à pasta do Google Drive...")
 
-conn = load_database_into_memory()  # O banco agora é carregado na memória
+# Listar arquivos na pasta
+arquivos = list_files_in_folder(FLEETBD_FOLDER_ID)
 
-if conn is None:
-    st.error("❌ ERRO: Não foi possível carregar o banco de dados do Google Drive!")
-    st.stop()  # Interrompe a execução do sistema
-
-st.success("✅ Banco de dados carregado da nuvem!")
-
-# Inicializa a sessão do usuário
-if "authenticated" not in st.session_state:
-    st.session_state["authenticated"] = False
-if "user_type" not in st.session_state:
-    st.session_state["user_type"] = None
-if "show_welcome" not in st.session_state:
-    st.session_state["show_welcome"] = True  # Indica se deve mostrar a tela de boas-vindas
-
-# Se o usuário NÃO estiver autenticado, exibir tela de login
-if not st.session_state["authenticated"]:
-    login_screen()
+if arquivos:
+    st.success("✅ Pasta acessada com sucesso!")
+    st.write("📄 Arquivos encontrados na pasta:", arquivos)
 else:
-    st.title("🚛 Sistema de Gestão de Frotas!")
-    st.markdown("### Bem-vindo! Utilize o menu lateral para acessar as funcionalidades.")
-
-    # 🔄 Sempre que houver alteração nos dados, subir para o Google Drive (implementação futura)
-    if st.button("💾 Salvar banco de dados no Google Drive"):
-        st.error("🚀 No momento, as alterações no banco são feitas apenas na memória! Implementação futura necessária.")
+    st.error("❌ ERRO: Nenhum arquivo encontrado na pasta!")
+    st.warning("🔹 Verifique se a conta de serviço tem acesso à pasta.")
