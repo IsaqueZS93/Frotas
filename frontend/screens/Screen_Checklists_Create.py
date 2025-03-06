@@ -53,9 +53,9 @@ def checklist_create_screen():
     # 🔹 Perguntas organizadas em colunas para melhor apresentação
     col1, col2 = st.columns(2)
     with col1:
-        pneus_ok = st.radio("🛞 Condição dos Pneus", ["SIM", "NÃO"], horizontal=True) == "SIM"
+        pneus_ok = st.radio("🛞 Pneus em boas condições?", ["SIM", "NÃO"], horizontal=True) == "SIM"
         farois_setas_ok = st.radio("💡 Faróis e Setas Funcionando?", ["SIM", "NÃO"], horizontal=True) == "SIM"
-        freios_ok = st.radio("🛑 Condição dos Freios", ["SIM", "NÃO"], horizontal=True) == "SIM"
+        freios_ok = st.radio("🛑 Sistema de freio em boas condições?", ["SIM", "NÃO"], horizontal=True) == "SIM"
     
     with col2:
         oleo_ok = st.radio("🛢️ Nível do Óleo Adequado?", ["SIM", "NÃO"], horizontal=True) == "SIM"
