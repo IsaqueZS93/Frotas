@@ -60,7 +60,6 @@ if not os.path.exists(DB_PATH):
 if not os.path.exists(DB_PATH):
     st.error("❌ Banco de dados não encontrado! O sistema não pode continuar.")
     st.stop()
-st.success("✅ Banco de dados pronto para uso!")
 
 # 🔹 Inicializa as variáveis de estado
 if "authenticated" not in st.session_state:
