@@ -35,9 +35,6 @@ st.markdown(hide_menu_style, unsafe_allow_html=True)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "backend", "database", "fleet_management.db")
 
-# 🔹 Debug: Mostrar caminho do banco
-st.write(f"📂 Tentando localizar o banco de dados em: `{DB_PATH}`")
-
 # 🔹 Criar banco de dados se não existir
 if not os.path.exists(DB_PATH):
     st.warning("⚠️ Banco de dados não encontrado! Criando um novo banco...")
@@ -49,7 +46,6 @@ try:
         st.success("✅ Banco de dados encontrado e pronto para download.")
 except FileNotFoundError:
     st.error("❌ Banco de dados não encontrado! Ele pode estar rodando em memória.")
-    # Tentar salvar do SQLite para um arquivo
     try:
         conn = sqlite3.connect(":memory:")
         backup_conn = sqlite3.connect(DB_PATH)
@@ -67,8 +63,15 @@ def push_to_github():
         st.error("❌ Banco de dados não encontrado para upload!")
         return False
 
+    GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"] if "GITHUB_TOKEN" in st.secrets else None
+    GITHUB_REPO = st.secrets["GITHUB_REPO"] if "GITHUB_REPO" in st.secrets else None
+
+    if not GITHUB_TOKEN or not GITHUB_REPO:
+        st.error("⚠️ Erro: Token do GitHub ou Repositório não configurado nos Secrets do Streamlit!")
+        return False
+
     try:
-        repo_url = f"https://{os.getenv('GITHUB_TOKEN')}@github.com/{os.getenv('GITHUB_REPO')}.git"
+        repo_url = f"https://{GITHUB_TOKEN}@github.com/{GITHUB_REPO}.git"
 
         subprocess.run(["git", "config", "--global", "user.email", "streamlit@fleet.com"], check=True)
         subprocess.run(["git", "config", "--global", "user.name", "Streamlit AutoCommit"], check=True)
