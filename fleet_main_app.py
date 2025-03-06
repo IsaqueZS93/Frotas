@@ -77,6 +77,31 @@ if not st.session_state["authenticated"]:
 st.sidebar.write(f"👤 **Usuário:** {st.session_state.get('user_name', 'Desconhecido')}")
 st.sidebar.write(f"🔑 **Permissão:** {st.session_state.get('user_type', 'Desconhecido')}")
 
+# 🔹 Exibir botão de backup para ADMINs
+if st.session_state.get("user_type") == "ADMIN":
+    st.sidebar.subheader("⚙️ Configurações Avançadas")
+
+    # 🔹 Botão para download do banco de dados
+    with open(DB_PATH, "rb") as file:
+        st.sidebar.download_button(
+            label="📥 Baixar Backup do Banco",
+            data=file,
+            file_name="fleet_management.db",
+            mime="application/octet-stream"
+        )
+
+    # 🔹 Upload do banco de dados
+    uploaded_file = st.sidebar.file_uploader("📤 Enviar um novo banco de dados", type=["db"])
+    if uploaded_file is not None:
+        new_db_path = os.path.join(os.path.dirname(DB_PATH), "fleet_management_uploaded.db")
+        with open(new_db_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+
+        # Substituir o banco de dados principal pelo novo
+        os.replace(new_db_path, DB_PATH)
+        st.success("✅ Banco de dados atualizado com sucesso! Reinicie o sistema.")
+        st.rerun()
+
 # 🔹 Menu lateral para navegação
 menu_option = st.sidebar.radio(
     "🚗 **Menu Principal**",
