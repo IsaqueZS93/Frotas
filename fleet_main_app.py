@@ -34,6 +34,7 @@ if not os.path.exists(DB_PATH):
     st.warning("⚠️ Banco de dados não encontrado! Criando um novo banco...")
     create_database()
 
+# 🔹 Verifica se o banco foi criado corretamente
 if not os.path.exists(DB_PATH):
     st.error("❌ Banco de dados não encontrado! O sistema não pode continuar.")
     st.stop()
@@ -43,12 +44,30 @@ st.success("✅ Banco de dados encontrado e pronto para uso!")
 # 🔹 Verifica se há usuários cadastrados no banco
 def is_first_access():
     """Retorna True se não houver usuários cadastrados no banco de dados."""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM users")
-    user_count = cursor.fetchone()[0]
-    conn.close()
-    return user_count == 0
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Verificar se a tabela `users` realmente existe
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+        table_exists = cursor.fetchone()
+        
+        if not table_exists:
+            st.warning("⚠️ A tabela `users` não existe! Criando banco novamente...")
+            create_database()
+            return True  # Permitir acesso inicial
+        
+        # Contar os usuários cadastrados
+        cursor.execute("SELECT COUNT(*) FROM users")
+        user_count = cursor.fetchone()[0]
+        conn.close()
+        
+        st.write(f"🔍 Número de usuários no banco: {user_count}")  # Debug no Streamlit
+        
+        return user_count == 0
+    except Exception as e:
+        st.error(f"❌ Erro ao verificar usuários: {e}")
+        return False
 
 # 🔹 Inicializa a sessão do usuário
 if "authenticated" not in st.session_state:
