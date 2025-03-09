@@ -60,31 +60,31 @@ if "user_type" not in st.session_state:
 if "user_name" not in st.session_state:
     st.session_state["user_name"] = None
 
-# 🔹 Tela de Login sem menu lateral
-if not st.session_state["authenticated"]:
-    st.sidebar.empty()  # Esconde o menu lateral enquanto estiver na tela de login
+# 🔹 Exibe o menu lateral mesmo na tela de login
+st.sidebar.title("⚙️ Configuração do Banco de Dados")
+
+# 🔹 Verifica se o banco de dados existe antes de permitir login
+if not os.path.exists(DB_PATH):
+    st.sidebar.error("❌ Banco de dados não encontrado! O sistema não pode continuar sem um banco válido.")
     
-    # 🔹 Verifica se o banco de dados existe antes de permitir login
-    if not os.path.exists(DB_PATH):
-        st.error("❌ Banco de dados não encontrado! O sistema não pode continuar sem um banco válido.")
-        
-        # 🔹 Permite que o usuário faça upload de um banco de dados existente
-        uploaded_file = st.file_uploader("📤 Carregue um banco de dados existente (.db)", type=["db"])
-        
-        if uploaded_file is not None:
-            new_db_path = os.path.join(os.path.dirname(DB_PATH), "fleet_management_uploaded.db")
-            with open(new_db_path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
+    # 🔹 Permite que o usuário faça upload de um banco de dados existente pelo menu lateral
+    uploaded_file = st.sidebar.file_uploader("📤 Enviar um banco de dados (.db)", type=["db"])
+    
+    if uploaded_file is not None:
+        new_db_path = os.path.join(os.path.dirname(DB_PATH), "fleet_management_uploaded.db")
+        with open(new_db_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
 
-            # Substituir o banco de dados principal pelo novo
-            os.replace(new_db_path, DB_PATH)
-            st.success("✅ Banco de dados carregado com sucesso! Reinicie o sistema.")
-            st.stop()
-        else:
-            st.warning("⏳ Aguardando upload de um banco de dados válido...")
-            st.stop()
+        # Substituir o banco de dados principal pelo novo
+        os.replace(new_db_path, DB_PATH)
+        st.sidebar.success("✅ Banco de dados carregado com sucesso! Reinicie o sistema.")
+        st.stop()
+    else:
+        st.sidebar.warning("⏳ Aguardando upload de um banco de dados válido...")
+        st.stop()
 
-    # 🔹 Se o banco existir, exibe a tela de login
+# 🔹 Se o banco existir, exibe a tela de login
+if not st.session_state["authenticated"]:
     user_info = login_screen()
     if user_info:
         st.session_state["authenticated"] = True
@@ -156,4 +156,3 @@ else:
         st.session_state.clear()
         st.success("✅ Você saiu do sistema! Redirecionando... 🔄")
         st.rerun()
-        
