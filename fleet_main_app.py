@@ -60,28 +60,27 @@ if "user_type" not in st.session_state:
 if "user_name" not in st.session_state:
     st.session_state["user_name"] = None
 
-# 🔹 Exibe o menu lateral mesmo na tela de login
+# 🔹 Exibe o menu lateral sempre
 st.sidebar.title("⚙️ Configuração do Banco de Dados")
 
-# 🔹 Verifica se o banco de dados existe antes de permitir login
+# 🔹 Upload do banco de dados SEMPRE disponível no menu lateral
+st.sidebar.subheader("📤 Enviar um novo banco de dados")
+uploaded_file = st.sidebar.file_uploader("Escolha um arquivo (.db)", type=["db"])
+
+if uploaded_file is not None:
+    new_db_path = os.path.join(os.path.dirname(DB_PATH), "fleet_management_uploaded.db")
+    with open(new_db_path, "wb") as f:
+        f.write(uploaded_file.getbuffer())
+
+    # Substituir o banco de dados principal pelo novo
+    os.replace(new_db_path, DB_PATH)
+    st.sidebar.success("✅ Banco de dados atualizado com sucesso! Reinicie o sistema.")
+    st.stop()
+
+# 🔹 Se o banco de dados não existir, exibe um aviso
 if not os.path.exists(DB_PATH):
     st.sidebar.error("❌ Banco de dados não encontrado! O sistema não pode continuar sem um banco válido.")
-    
-    # 🔹 Permite que o usuário faça upload de um banco de dados existente pelo menu lateral
-    uploaded_file = st.sidebar.file_uploader("📤 Enviar um banco de dados (.db)", type=["db"])
-    
-    if uploaded_file is not None:
-        new_db_path = os.path.join(os.path.dirname(DB_PATH), "fleet_management_uploaded.db")
-        with open(new_db_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
-
-        # Substituir o banco de dados principal pelo novo
-        os.replace(new_db_path, DB_PATH)
-        st.sidebar.success("✅ Banco de dados carregado com sucesso! Reinicie o sistema.")
-        st.stop()
-    else:
-        st.sidebar.warning("⏳ Aguardando upload de um banco de dados válido...")
-        st.stop()
+    st.stop()
 
 # 🔹 Se o banco existir, exibe a tela de login
 if not st.session_state["authenticated"]:
@@ -109,18 +108,6 @@ else:
                 file_name="fleet_management.db",
                 mime="application/octet-stream"
             )
-
-        # 🔹 Upload do banco de dados
-        uploaded_file = st.sidebar.file_uploader("📤 Enviar um novo banco de dados", type=["db"])
-        if uploaded_file is not None:
-            new_db_path = os.path.join(os.path.dirname(DB_PATH), "fleet_management_uploaded.db")
-            with open(new_db_path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
-
-            # Substituir o banco de dados principal pelo novo
-            os.replace(new_db_path, DB_PATH)
-            st.success("✅ Banco de dados atualizado com sucesso! Reinicie o sistema.")
-            st.rerun()
 
     menu_option = st.sidebar.radio(
         "🚗 **Menu Principal**",
