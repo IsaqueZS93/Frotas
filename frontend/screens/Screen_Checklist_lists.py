@@ -126,7 +126,7 @@ def checklist_list_screen():
                 email_status = send_email(
                     subject="Checklist Excluído",
                     message=f"O checklist com ID {checklist['id']} foi excluído do sistema.",
-                    to_email="admin@empresa.com"
+                    to_email="frotasnovaes@gmail.com"
                 )
                 if email_status:
                     st.info("Email de notificação enviado com sucesso.")
