@@ -65,47 +65,46 @@ def checklist_create_screen():
     # 🔹 Observações gerais
     observacoes = st.text_area("📝 Observações (Opcional)")
 
-    # 🔹 Upload de fotos
+    # 🔹 Upload de fotos (as fotos são carregadas, mas o processamento é feito após o clique no botão)
     fotos = st.file_uploader("📸 Adicionar Fotos do Veículo", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
 
-    # 🔹 Criar ou verificar a pasta no Google Drive para o veículo
-    # Lista os itens dentro da pasta principal de checklists
-    itens_pasta = list_files_in_folder(PASTA_CHECKLISTS_ID)
-    pasta_veiculo_id = None
-    for item in itens_pasta:
-        if item.get("name") == placa:
-            pasta_veiculo_id = item.get("id")
-            break
-
-    if pasta_veiculo_id:
-        st.info(f"A pasta para a placa {placa} já existe no Google Drive.")
-    else:
-        pasta_veiculo_id = create_subfolder(PASTA_CHECKLISTS_ID, placa)
-        if pasta_veiculo_id:
-            st.success(f"Pasta para {placa} criada no Google Drive.")
-        else:
-            st.error("❌ Erro ao criar/verificar pasta do veículo no Google Drive.")
-            return
-    
-    # 🔹 Criar nomes para as imagens antes do upload
-    data_hora_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-    imagens_paths = []
-    
-    for foto in fotos:
-        extensao = os.path.splitext(foto.name)[1]
-        nome_arquivo = f"{placa}_{data_hora_str}{extensao}"
-        temp_path = os.path.join("/tmp", nome_arquivo)
-        with open(temp_path, "wb") as temp_file:
-            temp_file.write(foto.read())
-        imagens_paths.append(temp_path)
-    
-    imagens_ids = upload_images_to_drive(imagens_paths, pasta_veiculo_id)
-    for temp_path in imagens_paths:
-        os.remove(temp_path)
-    imagens_ids_str = "|".join(imagens_ids) if imagens_ids else ""
-    
-    # 🔹 Submeter checklist
+    # 🔹 Ações executadas somente ao submeter o checklist
     if st.button("✅ Submeter Checklist"):
+        # 🔹 Criar ou verificar a pasta no Google Drive para o veículo
+        itens_pasta = list_files_in_folder(PASTA_CHECKLISTS_ID)
+        pasta_veiculo_id = None
+        for item in itens_pasta:
+            if item.get("name") == placa:
+                pasta_veiculo_id = item.get("id")
+                break
+
+        if pasta_veiculo_id:
+            st.info(f"A pasta para a placa {placa} já existe no Google Drive.")
+        else:
+            pasta_veiculo_id = create_subfolder(PASTA_CHECKLISTS_ID, placa)
+            if pasta_veiculo_id:
+                st.success(f"Pasta para {placa} criada no Google Drive.")
+            else:
+                st.error("❌ Erro ao criar/verificar pasta do veículo no Google Drive.")
+                return
+        
+        # 🔹 Criar nomes para as imagens antes do upload
+        data_hora_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        imagens_paths = []
+        for foto in fotos:
+            extensao = os.path.splitext(foto.name)[1]
+            nome_arquivo = f"{placa}_{data_hora_str}{extensao}"
+            temp_path = os.path.join("/tmp", nome_arquivo)
+            with open(temp_path, "wb") as temp_file:
+                temp_file.write(foto.read())
+            imagens_paths.append(temp_path)
+        
+        imagens_ids = upload_images_to_drive(imagens_paths, pasta_veiculo_id)
+        for temp_path in imagens_paths:
+            os.remove(temp_path)
+        imagens_ids_str = "|".join(imagens_ids) if imagens_ids else ""
+        
+        # 🔹 Submeter checklist
         sucesso = create_checklist(
             id_usuario=user_id,
             tipo=tipo_checklist,
