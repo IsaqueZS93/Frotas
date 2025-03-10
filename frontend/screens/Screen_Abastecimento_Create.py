@@ -98,24 +98,26 @@ def abastecimento_create_screen():
         if uploaded_file_ids:
             nota_fiscal_id = uploaded_file_ids[0]
 
-    # 🔹 Criar abastecimento no banco de dados
-    sucesso, mensagem = create_abastecimento(
-        id_usuario=user_id(),
-        placa=placa_selecionada,
-        data_hora=datetime.now().strftime("%d/%m/%Y %H:%M"),
-        km_atual=km_atual,
-        km_abastecimento=km_abastecimento,
-        quantidade_litros=quantidade_litros,
-        tipo_combustivel=tipo_combustivel,
-        valor_total=valor_total,
-        nota_fiscal=nota_fiscal_id,  # 🔹 Salva o ID do arquivo no banco
-        observacoes=observacoes
-    )
+    # 🔹 Botão para submeter o abastecimento
+    if st.button("Submeter Abastecimento"):
+        # 🔹 Criar abastecimento no banco de dados
+        sucesso, mensagem = create_abastecimento(
+            id_usuario=user_id(),
+            placa=placa_selecionada,
+            data_hora=datetime.now().strftime("%d/%m/%Y %H:%M"),
+            km_atual=km_atual,
+            km_abastecimento=km_abastecimento,
+            quantidade_litros=quantidade_litros,
+            tipo_combustivel=tipo_combustivel,
+            valor_total=valor_total,
+            nota_fiscal=nota_fiscal_id,  # 🔹 Salva o ID do arquivo no banco
+            observacoes=observacoes
+        )
 
-    if sucesso:
-        st.success("✅ Abastecimento registrado com sucesso!")
-    else:
-        st.error(f"❌ Erro: {mensagem}")
+        if sucesso:
+            st.success("✅ Abastecimento registrado com sucesso!")
+        else:
+            st.error(f"❌ Erro: {mensagem}")
 
 # 🔹 Executar a tela se for o script principal
 if __name__ == "__main__":
