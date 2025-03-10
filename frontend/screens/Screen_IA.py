@@ -8,6 +8,9 @@ from langchain.memory import ConversationBufferMemory
 from langchain_groq import ChatGroq
 from langchain.prompts import ChatPromptTemplate
 
+# 🔹 Importa o caminho correto do banco de dados
+from backend.database.db_fleet import DB_PATH
+
 # =============================================================================
 # Função para extrair somente o texto da resposta, removendo prefixos e metadados.
 # =============================================================================
@@ -163,7 +166,6 @@ Conheça nosso banco de dados:
 
 Utilize essas informações para responder de forma clara, objetiva e natural. 
 Não ultrapasse 300 caracteres nas respostas.
-
 """
     template = ChatPromptTemplate.from_messages([
         ('system', system_message),
@@ -203,12 +205,12 @@ def screen_ia():
         st.error("❌ Chave da API Groq não encontrada. Verifique seu arquivo .env.")
         return
 
-    db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../", "fleet_management.db"))
-    if not os.path.exists(db_path):
-        st.error(f"❌ Banco de dados não encontrado em: {db_path}")
+    # Utiliza o DB_PATH importado para acessar o banco de dados
+    if not os.path.exists(DB_PATH):
+        st.error(f"❌ Banco de dados não encontrado em: {DB_PATH}")
         return
 
-    db_json = load_database_as_json(db_path)
+    db_json = load_database_as_json(DB_PATH)
 
     # Listar modelos disponíveis
     available_models = list_available_models(GROQ_API_KEY)
@@ -216,7 +218,6 @@ def screen_ia():
         st.error("❌ Não foi possível carregar os modelos disponíveis.")
         return
 
-    # O widget st.selectbox usa a chave "selected_model" para persistir seu valor
     selected_model = st.selectbox(
         "Selecione o modelo para resposta:",
         options=available_models,
@@ -224,7 +225,6 @@ def screen_ia():
         key="selected_model"
     )
 
-    # Use uma chave separada para controlar se o modelo atual mudou
     if "chain" not in st.session_state or st.session_state.get("current_model") != selected_model:
         selected_llm = ChatGroq(api_key=GROQ_API_KEY, model_name=selected_model)
         st.session_state["chain"] = build_chain(db_json, selected_llm)
