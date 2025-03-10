@@ -10,7 +10,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")
 from backend.db_models.DB_Models_checklists import create_checklist
 from backend.db_models.DB_Models_Veiculo import get_veiculo_by_placa, get_all_veiculos, update_veiculos_KM
 from backend.services.Service_Email import send_email_alert
-from backend.services.Service_Google_Drive import create_subfolder, upload_images_to_drive, get_folder_id_by_name
+from backend.services.Service_Google_Drive import create_subfolder, upload_images_to_drive, get_folder_id_by_name, list_files_in_folder
 
 # 🔹 ID da pasta principal dos checklists no Google Drive
 PASTA_CHECKLISTS_ID = "10T2UHhc-wQXWRDj-Kc5F_dAHUM5F1TrK"
@@ -69,7 +69,14 @@ def checklist_create_screen():
     fotos = st.file_uploader("📸 Adicionar Fotos do Veículo", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
 
     # 🔹 Criar ou verificar a pasta no Google Drive para o veículo
-    pasta_veiculo_id = get_folder_id_by_name(placa)
+    # Lista os itens dentro da pasta principal de checklists
+    itens_pasta = list_files_in_folder(PASTA_CHECKLISTS_ID)
+    pasta_veiculo_id = None
+    for item in itens_pasta:
+        if item.get("name") == placa:
+            pasta_veiculo_id = item.get("id")
+            break
+
     if pasta_veiculo_id:
         st.info(f"A pasta para a placa {placa} já existe no Google Drive.")
     else:
@@ -129,12 +136,12 @@ def checklist_create_screen():
                 if not itens_seguranca_ok: problemas.append("🦺 Itens de segurança incompletos")
                 
                 email_mensagem = f"""
-                🚨 **Alerta de Problema no Veículo**
-                - 📌 **Placa:** {placa}
-                - 🕒 **Data/Hora:** {data_hora_str}
-                - 📝 **Problemas Identificados:**
-                {"\n".join(problemas)}
-                - 👤 **Usuário:** {st.session_state['user_id']}
+🚨 **Alerta de Problema no Veículo**
+- 📌 **Placa:** {placa}
+- 🕒 **Data/Hora:** {data_hora_str}
+- 📝 **Problemas Identificados:**
+{"\n".join(problemas)}
+- 👤 **Usuário:** {st.session_state['user_id']}
                 """
                 send_email_alert(f"⚠ Alerta de Problema no Veículo {placa}", email_mensagem)
             
