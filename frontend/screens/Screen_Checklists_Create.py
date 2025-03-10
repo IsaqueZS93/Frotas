@@ -10,7 +10,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")
 from backend.db_models.DB_Models_checklists import create_checklist
 from backend.db_models.DB_Models_Veiculo import get_veiculo_by_placa, get_all_veiculos, update_veiculos_KM
 from backend.services.Service_Email import send_email_alert
-from backend.services.Service_Google_Drive import create_subfolder, upload_images_to_drive
+from backend.services.Service_Google_Drive import create_subfolder, upload_images_to_drive, get_folder_id_by_name
 
 # 🔹 ID da pasta principal dos checklists no Google Drive
 PASTA_CHECKLISTS_ID = "10T2UHhc-wQXWRDj-Kc5F_dAHUM5F1TrK"
@@ -40,7 +40,7 @@ def checklist_create_screen():
     veiculo = get_veiculo_by_placa(placa)
     km_atual = veiculo["hodometro_atual"] if veiculo else 0
 
-    if "km_atual_aux" not in st.session_state or st.session_state["placa_selecionada"] != placa:
+    if "km_atual_aux" not in st.session_state or st.session_state.get("placa_selecionada") != placa:
         st.session_state["km_atual_aux"] = km_atual
         st.session_state["placa_selecionada"] = placa
 
@@ -68,13 +68,19 @@ def checklist_create_screen():
     # 🔹 Upload de fotos
     fotos = st.file_uploader("📸 Adicionar Fotos do Veículo", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
 
-    # Criar nome da pasta no Google Drive (com base na placa)
-    pasta_veiculo_id = create_subfolder(PASTA_CHECKLISTS_ID, placa)
-    if not pasta_veiculo_id:
-        st.error("❌ Erro ao criar/verificar pasta do veículo no Google Drive.")
-        return
+    # 🔹 Criar ou verificar a pasta no Google Drive para o veículo
+    pasta_veiculo_id = get_folder_id_by_name(placa)
+    if pasta_veiculo_id:
+        st.info(f"A pasta para a placa {placa} já existe no Google Drive.")
+    else:
+        pasta_veiculo_id = create_subfolder(PASTA_CHECKLISTS_ID, placa)
+        if pasta_veiculo_id:
+            st.success(f"Pasta para {placa} criada no Google Drive.")
+        else:
+            st.error("❌ Erro ao criar/verificar pasta do veículo no Google Drive.")
+            return
     
-    # Criar nomes para as imagens antes do upload
+    # 🔹 Criar nomes para as imagens antes do upload
     data_hora_str = datetime.now().strftime("%Y%m%d_%H%M%S")
     imagens_paths = []
     
@@ -112,6 +118,7 @@ def checklist_create_screen():
         if sucesso:
             update_veiculos_KM(placa, km_informado)
             
+            # Envio de alerta por email, caso haja algum problema no veículo
             if not all([pneus_ok, farois_setas_ok, freios_ok, oleo_ok, vidros_retrovisores_ok, itens_seguranca_ok]):
                 problemas = []
                 if not pneus_ok: problemas.append("🛞 Pneus desgastados")
