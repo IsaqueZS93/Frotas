@@ -1,4 +1,3 @@
-# C:\Users\Novaes Engenharia\github - deploy\Frotas\frontend\screens\Screen_Abastecimento_Create.py
 import streamlit as st
 import sys
 import os
@@ -10,9 +9,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")
 
 # 🔹 Importações dos módulos do projeto
 from backend.db_models.DB_Models_Abastecimento import (
-    create_abastecimento, get_ultimo_km_veiculo, get_next_abastecimento_id
+    create_abastecimento, 
+    get_next_abastecimento_id
 )
-from backend.db_models.DB_Models_Veiculo import get_all_veiculos
+from backend.db_models.DB_Models_Veiculo import get_all_veiculos, get_KM_veiculo_placa
+from backend.services.Service_Email import send_email_alert
 
 # 🔹 ID da pasta principal "Abastecimentos" no Google Drive
 PASTA_ABASTECIMENTOS_ID = "1zw9CR0InO4J0ns1MvETMMiZwY7qfAW3A"
@@ -46,8 +47,11 @@ def abastecimento_create_screen():
     # 🔹 Formulário de abastecimento
     placa_selecionada = st.selectbox("🚗 Placa do Veículo", lista_placas)
 
-    # 🔹 Buscar o último KM do veículo selecionado
-    km_atual = get_ultimo_km_veiculo(placa_selecionada)
+    # 🔹 Buscar o KM atual do veículo selecionado usando get_KM_veiculo_placa
+    km_atual = get_KM_veiculo_placa(placa_selecionada)
+    if km_atual is None:
+        st.error("❌ Não foi possível recuperar o KM atual deste veículo.")
+        return
     st.write(f"📌 **KM Atual:** {km_atual} km")
 
     km_abastecimento = st.number_input("📍 KM no Momento do Abastecimento", min_value=km_atual, step=1)
@@ -64,62 +68,54 @@ def abastecimento_create_screen():
 
     observacoes = st.text_area("📝 Observações Gerais (Opcional)")
 
-    # 🔹 Botão de submissão
-    if st.button("💾 Registrar Abastecimento"):
-        if km_abastecimento < km_atual:
-            st.error("❌ O KM informado não pode ser inferior ao KM atual do veículo.")
-        elif quantidade_litros <= 0 or valor_total <= 0:
-            st.error("❌ Informe valores válidos para quantidade e valor total.")
-        else:
-            # 🔹 Obter o próximo ID de abastecimento
-            abastecimento_id = get_next_abastecimento_id()
+    # 🔹 Obter o próximo ID de abastecimento (se necessário)
+    abastecimento_id = get_next_abastecimento_id()
 
-            # 🔹 Criar/Obter a subpasta da PLACA dentro da pasta "Abastecimentos"
-            pasta_veiculo_id = create_subfolder(PASTA_ABASTECIMENTOS_ID, placa_selecionada)
+    # 🔹 Criar/Obter a subpasta da PLACA dentro da pasta "Abastecimentos"
+    pasta_veiculo_id = create_subfolder(PASTA_ABASTECIMENTOS_ID, placa_selecionada)
+    if not pasta_veiculo_id:
+        st.error("❌ Erro ao criar ou localizar a pasta do veículo no Google Drive.")
+        return
 
-            if not pasta_veiculo_id:
-                st.error("❌ Erro ao criar ou localizar a pasta do veículo no Google Drive.")
-                return
+    # 🔹 Fazer upload da nota fiscal para o Google Drive
+    nota_fiscal_id = None
+    if nota_fiscal:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        file_extension = os.path.splitext(nota_fiscal.name)[1]
+        filename = f"{placa_selecionada}_{timestamp}_{abastecimento_id}{file_extension}"
 
-            # 🔹 Fazer upload da nota fiscal para o Google Drive
-            nota_fiscal_id = None
-            if nota_fiscal:
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                file_extension = os.path.splitext(nota_fiscal.name)[1]
-                filename = f"{placa_selecionada}_{timestamp}_{abastecimento_id}{file_extension}"
+        # Criar um arquivo temporário para upload
+        temp_path = os.path.join(os.getcwd(), filename)
+        with open(temp_path, "wb") as f:
+            f.write(nota_fiscal.getbuffer())
 
-                # Criar um arquivo temporário para upload
-                temp_path = os.path.join(os.getcwd(), filename)
-                with open(temp_path, "wb") as f:
-                    f.write(nota_fiscal.getbuffer())
+        # Fazer upload da imagem
+        uploaded_file_ids = upload_images_to_drive([temp_path], pasta_veiculo_id)
 
-                # Fazer upload da imagem
-                uploaded_file_ids = upload_images_to_drive([temp_path], pasta_veiculo_id)
+        # Excluir o arquivo temporário após o upload
+        os.remove(temp_path)
 
-                # Excluir o arquivo temporário após o upload
-                os.remove(temp_path)
+        if uploaded_file_ids:
+            nota_fiscal_id = uploaded_file_ids[0]
 
-                if uploaded_file_ids:
-                    nota_fiscal_id = uploaded_file_ids[0]
+    # 🔹 Criar abastecimento no banco de dados
+    sucesso, mensagem = create_abastecimento(
+        id_usuario=user_id(),
+        placa=placa_selecionada,
+        data_hora=datetime.now().strftime("%d/%m/%Y %H:%M"),
+        km_atual=km_atual,
+        km_abastecimento=km_abastecimento,
+        quantidade_litros=quantidade_litros,
+        tipo_combustivel=tipo_combustivel,
+        valor_total=valor_total,
+        nota_fiscal=nota_fiscal_id,  # 🔹 Salva o ID do arquivo no banco
+        observacoes=observacoes
+    )
 
-            # 🔹 Criar abastecimento no banco de dados
-            sucesso, mensagem = create_abastecimento(
-                id_usuario=user_id(),
-                placa=placa_selecionada,
-                data_hora=datetime.now().strftime("%d/%m/%Y %H:%M"),
-                km_atual=km_atual,
-                km_abastecimento=km_abastecimento,
-                quantidade_litros=quantidade_litros,
-                tipo_combustivel=tipo_combustivel,
-                valor_total=valor_total,
-                nota_fiscal=nota_fiscal_id,  # 🔹 Salva o ID do arquivo no banco
-                observacoes=observacoes
-            )
-
-            if sucesso:
-                st.success("✅ Abastecimento registrado com sucesso!")
-            else:
-                st.error(f"❌ Erro: {mensagem}")
+    if sucesso:
+        st.success("✅ Abastecimento registrado com sucesso!")
+    else:
+        st.error(f"❌ Erro: {mensagem}")
 
 # 🔹 Executar a tela se for o script principal
 if __name__ == "__main__":
