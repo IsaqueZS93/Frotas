@@ -99,7 +99,6 @@ else:
     # 🔹 Exibir botão de backup para ADMINs
     if st.session_state.get("user_type") == "ADMIN":
         st.sidebar.subheader("⚙️ Configurações Avançadas")
-
         # 🔹 Botão para download do banco de dados
         with open(DB_PATH, "rb") as file:
             st.sidebar.download_button(
@@ -109,12 +108,17 @@ else:
                 mime="application/octet-stream"
             )
 
-    menu_option = st.sidebar.radio(
-        "🚗 **Menu Principal**",
-        ["Gerenciar Perfil", "Cadastrar Usuário", "Gerenciar Usuários", "Cadastrar Veículo",
-         "Gerenciar Veículos", "Novo Checklist", "Gerenciar Checklists", "Novo Abastecimento",
-         "Gerenciar Abastecimentos", "Dashboards", "Chatbot IA 🤖", "Logout"]
-    )
+    # Define as opções de menu de acordo com o tipo de usuário
+    if st.session_state.get("user_type") == "OPE":
+        menu_options = ["Gerenciar Perfil", "Novo Checklist", "Novo Abastecimento", "Logout"]
+    else:  # ADMIN
+        menu_options = [
+            "Gerenciar Perfil", "Cadastrar Usuário", "Gerenciar Usuários", "Cadastrar Veículo",
+            "Gerenciar Veículos", "Novo Checklist", "Gerenciar Checklists", "Novo Abastecimento",
+            "Gerenciar Abastecimentos", "Dashboards", "Chatbot IA 🤖", "Logout"
+        ]
+
+    menu_option = st.sidebar.radio("🚗 **Menu Principal**", menu_options)
 
     # 🔹 Controle das telas de navegação
     if menu_option == "Gerenciar Perfil":
