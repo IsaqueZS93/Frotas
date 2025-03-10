@@ -12,10 +12,10 @@ from backend.db_models.DB_Models_Abastecimento import (
     get_all_abastecimentos, get_abastecimento_by_placa, get_abastecimento_by_usuario, 
     delete_abastecimento, get_abastecimento_by_id, create_abastecimento
 )
-from backend.db_models.DB_Models_Veiculo import get_all_veiculos, get_KM_veiculo_placa
+from backend.db_models.DB_Models_Veiculo import get_all_veiculos, get_veiculo_by_placa
 from backend.db_models.DB_Models_User import get_all_users
 
-# 🔹 ID da pasta principal "Abastecimentos" no Google Drive (mantido caso seja necessário em outras partes)
+# 🔹 ID da pasta principal "Abastecimentos" no Google Drive
 PASTA_ABASTECIMENTOS_ID = "1zw9CR0InO4J0ns1MvETMMiZwY7qfAW3A"
 
 def user_is_admin():
@@ -24,7 +24,7 @@ def user_is_admin():
 
 def abastecimento_list_edit_screen():
     """Tela para listar, editar e excluir abastecimentos."""
-
+    
     st.title("📋 Gerenciar Abastecimentos")
 
     # 🔹 Verificação de permissão
@@ -42,7 +42,6 @@ def abastecimento_list_edit_screen():
     # 🔹 Filtros
     st.subheader("🔍 Filtros de Busca")
     col1, col2, col3 = st.columns(3)
-
     with col1:
         filtro_placa = st.selectbox("🚗 Filtrar por Placa", ["Todos"] + lista_placas)
     with col2:
@@ -71,17 +70,20 @@ def abastecimento_list_edit_screen():
 
     for abastecimento in abastecimentos:
         with st.expander(f"🚗 {abastecimento['placa']} - {abastecimento['data_hora']}"):
-            # Utiliza a função get_KM_veiculo_placa para obter o KM atual do veículo
-            km_atual = get_KM_veiculo_placa(abastecimento["placa"]) or 0
+            col1, col2 = st.columns([2, 1])
 
-            # Exibição das informações básicas
-            st.write(f"📍 **KM Abastecimento:** {abastecimento.get('km_abastecimento', 0)} km")
-            st.write(f"⛽ **Quantidade:** {abastecimento['quantidade_litros']} L")
-            st.write(f"💰 **Valor Total:** R$ {abastecimento['valor_total']}")
-            st.write(f"💲 **Valor por Litro:** R$ {abastecimento['valor_por_litro']}")
-            st.write(f"📝 **Observações:** {abastecimento['observacoes'] if abastecimento.get('observacoes') else 'Nenhuma'}")
+            # Obter o KM atual do veículo usando a função get_veiculo_by_placa
+            veiculo = get_veiculo_by_placa(abastecimento["placa"])
+            km_atual = veiculo["hodometro_atual"] if veiculo else 0
 
-            # Removida a lógica de exibição de nota fiscal (imagens)
+            with col1:
+                st.write(f"📍 **KM Abastecimento:** {abastecimento.get('km_abastecimento', 0)} km")
+                st.write(f"⛽ **Quantidade:** {abastecimento['quantidade_litros']} L")
+                st.write(f"💰 **Valor Total:** R$ {abastecimento['valor_total']}")
+                st.write(f"💲 **Valor por Litro:** R$ {abastecimento['valor_por_litro']}")
+                st.write(f"📝 **Observações:** {abastecimento.get('observacoes', 'Nenhuma')}")
+            
+            # 🔹 Removida a lógica de exibição de nota fiscal/imagens
 
             # 🔹 Edição do abastecimento
             st.subheader("✏️ Editar Abastecimento")
