@@ -1,4 +1,3 @@
-# C:\Users\Novaes Engenharia\github - deploy\Frotas\frontend\screens\Screen_Abastecimento_List_Edit.py
 import streamlit as st
 import sys
 import os
@@ -81,24 +80,11 @@ def abastecimento_list_edit_screen():
                 st.write(f"💲 **Valor por Litro:** R$ {abastecimento['valor_por_litro']}")
                 st.write(f"📝 **Observações:** {abastecimento['observacoes'] if abastecimento['observacoes'] else 'Nenhuma'}")
 
-            # 🔹 Buscar a nota fiscal no Google Drive
+            # 🔹 Seção de Nota Fiscal sem exibição de imagens
             with col2:
                 st.subheader("📄 Nota Fiscal")
                 if abastecimento["nota_fiscal"]:
-                    # Buscar a pasta do veículo dentro da pasta "Abastecimentos"
-                    pasta_veiculo_id = get_folder_id_by_name(abastecimento["placa"])
-
-                    if pasta_veiculo_id:
-                        imagens = list_files_in_folder(pasta_veiculo_id)
-                        nota_fiscal_id = abastecimento["nota_fiscal"]
-                        imagem_encontrada = next((img for img in imagens if img["id"] == nota_fiscal_id), None)
-
-                        if imagem_encontrada:
-                            st.markdown(f"[📄 Visualizar Nota Fiscal]({imagem_encontrada['webViewLink']})", unsafe_allow_html=True)
-                        else:
-                            st.info("📌 Nota fiscal não encontrada no Google Drive.")
-                    else:
-                        st.info("📌 Nenhuma pasta correspondente encontrada para esta placa no Google Drive.")
+                    st.info("📌 Visualização da nota fiscal desabilitada.")
                 else:
                     st.info("📌 Nenhuma nota fiscal foi anexada a este abastecimento.")
 
