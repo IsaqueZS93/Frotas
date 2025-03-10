@@ -1,3 +1,4 @@
+# C:\Users\Novaes Engenharia\github - deploy\Frotas\frontend\screens\Screen_Abastecimento_List_Edit.py
 import streamlit as st
 import sys
 import os
@@ -12,7 +13,7 @@ from backend.db_models.DB_Models_Abastecimento import (
     get_all_abastecimentos, get_abastecimento_by_placa, get_abastecimento_by_usuario, 
     delete_abastecimento, get_abastecimento_by_id, create_abastecimento
 )
-from backend.db_models.DB_Models_Veiculo import get_all_veiculos, get_veiculo_by_placa
+from backend.db_models.DB_Models_Veiculo import get_all_veiculos
 from backend.db_models.DB_Models_User import get_all_users
 
 # 🔹 ID da pasta principal "Abastecimentos" no Google Drive
@@ -24,7 +25,7 @@ def user_is_admin():
 
 def abastecimento_list_edit_screen():
     """Tela para listar, editar e excluir abastecimentos."""
-    
+
     st.title("📋 Gerenciar Abastecimentos")
 
     # 🔹 Verificação de permissão
@@ -42,6 +43,7 @@ def abastecimento_list_edit_screen():
     # 🔹 Filtros
     st.subheader("🔍 Filtros de Busca")
     col1, col2, col3 = st.columns(3)
+
     with col1:
         filtro_placa = st.selectbox("🚗 Filtrar por Placa", ["Todos"] + lista_placas)
     with col2:
@@ -53,8 +55,8 @@ def abastecimento_list_edit_screen():
     if filtro_placa != "Todos":
         abastecimentos = get_abastecimento_by_placa(filtro_placa)
     elif filtro_usuario != "Todos":
-        user_id_str = filtro_usuario.split(" - ")[0]
-        abastecimentos = get_abastecimento_by_usuario(user_id_str)
+        user_id = filtro_usuario.split(" - ")[0]
+        abastecimentos = get_abastecimento_by_usuario(user_id)
     else:
         abastecimentos = get_all_abastecimentos()
 
@@ -72,50 +74,58 @@ def abastecimento_list_edit_screen():
         with st.expander(f"🚗 {abastecimento['placa']} - {abastecimento['data_hora']}"):
             col1, col2 = st.columns([2, 1])
 
-            # Obter o KM atual do veículo usando a função get_veiculo_by_placa
-            veiculo = get_veiculo_by_placa(abastecimento["placa"])
-            km_atual = veiculo["hodometro_atual"] if veiculo else 0
-
             with col1:
-                st.write(f"📍 **KM Abastecimento:** {km_atual('km_abastecimento')} km")
+                st.write(f"📍 **KM Abastecimento:** {abastecimento['km_abastecimento']} km")
                 st.write(f"⛽ **Quantidade:** {abastecimento['quantidade_litros']} L")
                 st.write(f"💰 **Valor Total:** R$ {abastecimento['valor_total']}")
                 st.write(f"💲 **Valor por Litro:** R$ {abastecimento['valor_por_litro']}")
-                st.write(f"📝 **Observações:** {abastecimento.get('observacoes', 'Nenhuma')}")
-            
-            # 🔹 Removida a lógica de exibição de nota fiscal/imagens
+                st.write(f"📝 **Observações:** {abastecimento['observacoes'] if abastecimento['observacoes'] else 'Nenhuma'}")
+
+            # 🔹 Buscar a nota fiscal no Google Drive
+            with col2:
+                st.subheader("📄 Nota Fiscal")
+                if abastecimento["nota_fiscal"]:
+                    # Buscar a pasta do veículo dentro da pasta "Abastecimentos"
+                    pasta_veiculo_id = get_folder_id_by_name(abastecimento["placa"])
+
+                    if pasta_veiculo_id:
+                        imagens = list_files_in_folder(pasta_veiculo_id)
+                        nota_fiscal_id = abastecimento["nota_fiscal"]
+                        imagem_encontrada = next((img for img in imagens if img["id"] == nota_fiscal_id), None)
+
+                        if imagem_encontrada:
+                            st.markdown(f"[📄 Visualizar Nota Fiscal]({imagem_encontrada['webViewLink']})", unsafe_allow_html=True)
+                        else:
+                            st.info("📌 Nota fiscal não encontrada no Google Drive.")
+                    else:
+                        st.info("📌 Nenhuma pasta correspondente encontrada para esta placa no Google Drive.")
+                else:
+                    st.info("📌 Nenhuma nota fiscal foi anexada a este abastecimento.")
 
             # 🔹 Edição do abastecimento
             st.subheader("✏️ Editar Abastecimento")
-            novo_km_abastecimento = st.number_input(
-                "📍 Novo KM Abastecimento",
-                min_value=km_atual,
-                step=1,
-                value=abastecimento.get("km_abastecimento", km_atual),
-                key=f"km_{abastecimento['id']}"
-            )
 
-            nova_quantidade_litros = st.number_input(
-                "⛽ Nova Quantidade Abastecida (L)",
-                min_value=0.1,
-                step=0.1,
-                value=abastecimento["quantidade_litros"],
-                key=f"litros_{abastecimento['id']}"
-            )
+            novo_km_abastecimento = st.number_input("📍 Novo KM Abastecimento", 
+                                                    min_value=abastecimento['km_atual'], 
+                                                    step=1, 
+                                                    value=abastecimento["km_abastecimento"], 
+                                                    key=f"km_{abastecimento['id']}")
 
-            novo_valor_total = st.number_input(
-                "💰 Novo Valor Total Pago (R$)",
-                min_value=0.01,
-                step=0.01,
-                value=abastecimento["valor_total"],
-                key=f"total_{abastecimento['id']}"
-            )
+            nova_quantidade_litros = st.number_input("⛽ Nova Quantidade Abastecida (L)", 
+                                                     min_value=0.1, 
+                                                     step=0.1, 
+                                                     value=abastecimento["quantidade_litros"], 
+                                                     key=f"litros_{abastecimento['id']}")
 
-            novas_observacoes = st.text_area(
-                "📝 Novas Observações",
-                value=abastecimento.get("observacoes", ""),
-                key=f"obs_{abastecimento['id']}"
-            )
+            novo_valor_total = st.number_input("💰 Novo Valor Total Pago (R$)", 
+                                               min_value=0.01, 
+                                               step=0.01, 
+                                               value=abastecimento["valor_total"], 
+                                               key=f"total_{abastecimento['id']}")
+
+            novas_observacoes = st.text_area("📝 Novas Observações", 
+                                             value=abastecimento["observacoes"] if abastecimento["observacoes"] else "", 
+                                             key=f"obs_{abastecimento['id']}")
 
             novo_valor_por_litro = round(novo_valor_total / nova_quantidade_litros, 2) if nova_quantidade_litros > 0 else 0
             st.write(f"💲 **Novo Valor por Litro:** R$ {novo_valor_por_litro}")
@@ -126,7 +136,7 @@ def abastecimento_list_edit_screen():
                     id_usuario=abastecimento["id_usuario"],
                     placa=abastecimento["placa"],
                     data_hora=abastecimento["data_hora"],
-                    km_atual=km_atual,
+                    km_atual=abastecimento["km_atual"],
                     km_abastecimento=novo_km_abastecimento,
                     quantidade_litros=nova_quantidade_litros,
                     tipo_combustivel=abastecimento["tipo_combustivel"],
