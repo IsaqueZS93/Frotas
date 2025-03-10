@@ -77,7 +77,7 @@ def abastecimento_list_edit_screen():
             km_atual = veiculo["hodometro_atual"] if veiculo else 0
 
             with col1:
-                st.write(f"📍 **KM Abastecimento:** {abastecimento('km_abastecimento')} km")
+                st.write(f"📍 **KM Abastecimento:** {km_atual('km_abastecimento')} km")
                 st.write(f"⛽ **Quantidade:** {abastecimento['quantidade_litros']} L")
                 st.write(f"💰 **Valor Total:** R$ {abastecimento['valor_total']}")
                 st.write(f"💲 **Valor por Litro:** R$ {abastecimento['valor_por_litro']}")
