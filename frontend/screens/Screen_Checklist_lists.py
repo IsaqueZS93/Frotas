@@ -1,5 +1,3 @@
-# C:\Users\Novaes Engenharia\github - deploy\Frotas\frontend\screens\Screen_Checklist_lists.py
-
 import streamlit as st
 import sys
 import os
@@ -17,7 +15,13 @@ from backend.db_models.DB_Models_checklists import (
 )
 from backend.db_models.DB_Models_Veiculo import get_all_veiculos
 from backend.db_models.DB_Models_User import get_user_by_id
-from backend.services.Service_Google_Drive import search_files, list_files_in_folder, get_folder_id_by_name
+from backend.services.Service_Google_Drive import (
+    search_files, 
+    list_files_in_folder, 
+    get_folder_id_by_name,
+    upload_images_to_drive  # Função para capturar as imagens
+)
+from backend.services.Service_Email import send_email  # Função para enviar email
 
 # 🔹 ID da pasta principal "Checklists" no Google Drive
 PASTA_CHECKLISTS_ID = "10T2UHhc-wQXWRDj-Kc5F_dAHUM5F1TrK"
@@ -89,35 +93,45 @@ def checklist_list_screen():
                 st.write(f"🦺 **Itens de Segurança:** {'✅ OK' if checklist['itens_seguranca_ok'] else '❌ Problema'}")
                 st.write(f"📝 **Observações:** {checklist['observacoes'] if checklist['observacoes'] else 'Nenhuma observação registrada.'}")
 
-            # 🔹 Buscar imagens no Google Drive
+            # 🔹 Buscar e exibir imagens no Google Drive
             with col2:
                 st.subheader("📸 Fotos do Veículo")
-
-                # Verifica se há imagens cadastradas no banco
+                # Se o campo 'fotos' contiver caminhos locais separados por "|"
                 if checklist["fotos"]:
-                    fotos_ids = checklist["fotos"].split("|")
-
+                    local_image_paths = checklist["fotos"].split("|")
                     # Buscar a pasta da placa dentro da pasta Checklists
                     pasta_veiculo_id = get_folder_id_by_name(checklist["placa"])
-
                     if pasta_veiculo_id:
-                        imagens = list_files_in_folder(pasta_veiculo_id)
-                        imagens_encontradas = [img for img in imagens if img["id"] in fotos_ids]
-
-                        if imagens_encontradas:
-                            for imagem in imagens_encontradas:
-                                st.markdown(f"[🖼 Visualizar Imagem]({imagem['webViewLink']})", unsafe_allow_html=True)
+                        # Faz o upload (caso ainda não estejam no Drive) e captura as informações das imagens
+                        uploaded_images = upload_images_to_drive(local_image_paths, pasta_veiculo_id)
+                        if uploaded_images:
+                            for imagem in uploaded_images:
+                                link = imagem.get("webViewLink")
+                                if link:
+                                    st.markdown(f"[🖼 Visualizar Imagem]({link})", unsafe_allow_html=True)
+                                else:
+                                    st.info("Imagem sem link disponível.")
                         else:
-                            st.info("📌 Nenhuma imagem encontrada na pasta correspondente do Google Drive.")
+                            st.info("📌 Nenhuma imagem foi carregada para esta placa.")
                     else:
                         st.info("📌 Nenhuma pasta correspondente encontrada para esta placa no Google Drive.")
                 else:
                     st.info("📌 Nenhuma imagem foi anexada a este checklist.")
 
-            # 🔹 Botão de exclusão do checklist
+            # 🔹 Botão de exclusão do checklist e envio de notificação por email
             if st.button(f"🗑️ Excluir Checklist {checklist['id']}", key=f"delete_{checklist['id']}"):
                 delete_checklist(checklist["id"])
                 st.success(f"✅ Checklist {checklist['id']} excluído com sucesso!")
+                # Envia email de notificação (exemplo: para o administrador)
+                email_status = send_email(
+                    subject="Checklist Excluído",
+                    message=f"O checklist com ID {checklist['id']} foi excluído do sistema.",
+                    to_email="admin@empresa.com"
+                )
+                if email_status:
+                    st.info("Email de notificação enviado com sucesso.")
+                else:
+                    st.error("Falha ao enviar email de notificação.")
                 st.rerun()
 
 # Executar a tela se for o script principal
