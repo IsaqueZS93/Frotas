@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from langchain.memory import ConversationBufferMemory
 from langchain_groq import ChatGroq
 from langchain.prompts import ChatPromptTemplate
+from langchain.chains import LLMChain  # Importação necessária para criar a cadeia
 
 def split_large_json(db_json, max_tokens=4000):
     """Divide um JSON grande em partes menores se exceder o limite de tokens."""
@@ -74,7 +75,9 @@ def build_chain(db_json_parts, selected_llm):
         ('placeholder', '{chat_history}'),
         ('user', '{input}')
     ])
-    return template | selected_llm
+    # Cria a cadeia utilizando o LLMChain
+    chain = LLMChain(prompt=template, llm=selected_llm)
+    return chain
 
 def screen_ia():
     """Tela do Chatbot IA que utiliza o JSON do banco e um prompt estruturado."""
