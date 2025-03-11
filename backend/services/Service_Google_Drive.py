@@ -30,7 +30,7 @@ def get_google_drive_service():
 
     credentials_json = None
 
-    # 🔹 Primeiro, tenta pegar do `secrets.toml`
+    # 🔹 Primeiro, tenta pegar do secrets do Streamlit (útil na nuvem)
     if "GOOGLE_CREDENTIALS" in st.secrets:
         try:
             credentials_json = {
@@ -47,19 +47,18 @@ def get_google_drive_service():
                 "universe_domain": st.secrets["GOOGLE_CREDENTIALS"]["universe_domain"],
             }
         except Exception as e:
-            st.error("⚠️ Erro ao carregar credenciais do secrets.toml.")
+            st.error("⚠️ Erro ao carregar credenciais do secrets.toml: " + str(e))
 
-    # 🔹 Se não encontrou nos segredos, pede para o usuário fornecer manualmente
+    # 🔹 Se não encontrou nos segredos, pede para o usuário fornecer manualmente o JSON
     if not credentials_json:
         json_input = st.text_area("📥 Cole seu JSON de autenticação do Google Drive aqui:", height=250)
-
         if st.button("🔑 Autenticar"):
             try:
                 credentials_json = json.loads(json_input)
                 credentials_json["private_key"] = credentials_json["private_key"].replace("\\n", "\n")
                 st.success("✅ JSON válido! Prosseguindo com a autenticação.")
             except Exception as e:
-                st.error("❌ JSON inválido. Verifique o formato.")
+                st.error("❌ JSON inválido. Verifique o formato: " + str(e))
                 return None
 
     # 🔹 Se ainda não tiver credenciais, aborta
@@ -67,13 +66,13 @@ def get_google_drive_service():
         st.error("❌ Nenhuma credencial válida encontrada. Autenticação abortada.")
         return None
 
-    # 🔹 Criar credenciais do Google Drive
+    # 🔹 Criar credenciais do Google Drive com as informações obtidas
     try:
         creds = Credentials.from_service_account_info(credentials_json, scopes=SCOPES)
         st.success("✅ Autenticado via Conta de Serviço com sucesso!")
         return build("drive", "v3", credentials=creds)
     except Exception as e:
-        st.error("❌ Erro ao autenticar no Google Drive.")
+        st.error("❌ Erro ao autenticar no Google Drive: " + str(e))
         return None
 
 # Configuração do Google Drive
