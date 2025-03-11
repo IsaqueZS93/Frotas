@@ -122,16 +122,6 @@ def checklist_list_screen():
             if st.button(f"🗑️ Excluir Checklist {checklist['id']}", key=f"delete_{checklist['id']}"):
                 delete_checklist(checklist["id"])
                 st.success(f"✅ Checklist {checklist['id']} excluído com sucesso!")
-                # Envia email de notificação (exemplo: para o administrador)
-                email_status = send_email(
-                    subject="Checklist Excluído",
-                    message=f"O checklist com ID {checklist['id']} foi excluído do sistema.",
-                    to_email="frotasnovaes@gmail.com"
-                )
-                if email_status:
-                    st.info("Email de notificação enviado com sucesso.")
-                else:
-                    st.error("Falha ao enviar email de notificação.")
                 st.rerun()
 
 # Executar a tela se for o script principal
