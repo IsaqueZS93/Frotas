@@ -3,6 +3,7 @@ import pickle
 import streamlit as st
 import io
 import json
+import sqlite3
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from google.oauth2.service_account import Credentials
@@ -13,8 +14,13 @@ from dotenv import load_dotenv
 # Carregar variáveis de ambiente (útil para ambientes locais)
 load_dotenv()
 
-# Definir escopo de acesso (permite gerenciar arquivos no Google Drive)
-SCOPES = ['https://www.googleapis.com/auth/drive.file']
+# Definir escopo de acesso atualizado (permite gerenciar, ler e obter metadados dos arquivos no Google Drive)
+SCOPES = [
+    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/drive.metadata.readonly"
+]
+
 DB_FILE_PATH = "backend/database/fleet_management.db"
 DB_FILE_NAME = "fleet_management.db"
 
@@ -66,7 +72,7 @@ def get_google_drive_service():
         st.error("❌ Nenhuma credencial válida encontrada. Autenticação abortada.")
         return None
 
-    # 🔹 Criar credenciais do Google Drive com as informações obtidas
+    # 🔹 Criar credenciais do Google Drive com as informações obtidas, passando os escopos atualizados
     try:
         creds = Credentials.from_service_account_info(credentials_json, scopes=SCOPES)
         st.success("✅ Autenticado via Conta de Serviço com sucesso!")
@@ -78,7 +84,6 @@ def get_google_drive_service():
 # Configuração do Google Drive
 FLEETBD_FOLDER_ID = "1TeLkfzLxKCMR060z5kd8uNOXev1qLPda"  # ID correto da pasta no Google Drive
 DB_FILE_NAME = "fleet_management.db"  # Nome do banco no Drive
-
 
 def list_files_in_folder(folder_id):
     """Lista todos os arquivos dentro da pasta do Google Drive (debug)."""
@@ -98,7 +103,6 @@ def list_files_in_folder(folder_id):
 
 def load_database_into_memory():
     """Carrega o banco de dados do Google Drive para a memória."""
-
     service = get_google_drive_service()
     if not service:
         return None
@@ -142,13 +146,11 @@ def load_database_into_memory():
     st.success("✅ Banco de dados carregado da nuvem para a memória!")
     return conn
 
-from backend.services.Service_Google_Drive import get_google_drive_service
-
 def list_files_in_folder2(folder_id):
-    """ Lista todos os arquivos dentro de uma pasta no Google Drive """
+    """Lista todos os arquivos dentro de uma pasta no Google Drive (versão 2)."""
     try:
         service = get_google_drive_service()
-        query = f"'{folder_id}' in parents and trashed=false"  # 🔹 Busca arquivos dentro da pasta
+        query = f"'{folder_id}' in parents and trashed=false"
         results = service.files().list(q=query, fields="files(id, name)").execute()
         files = results.get("files", [])
         
@@ -165,10 +167,8 @@ def list_files_in_folder2(folder_id):
         print(f"❌ Erro ao listar arquivos na pasta {folder_id}: {e}")
         return []
 
-
 def upload_database():
-    """ Envia ou atualiza o banco de dados no Google Drive """
-    
+    """Envia ou atualiza o banco de dados no Google Drive."""
     # Verifica se o banco de dados existe antes do upload
     if not os.path.exists(DB_FILE_PATH):
         st.error("❌ Erro: O banco de dados não foi encontrado localmente. Nenhum upload foi realizado.")
@@ -199,7 +199,7 @@ def upload_database():
         st.success("✅ Banco de dados salvo no Google Drive pela primeira vez!")
 
 def download_database():
-    """ Baixa o banco de dados do Google Drive e substitui o local """
+    """Baixa o banco de dados do Google Drive e substitui o local."""
     service = get_google_drive_service()
     if not service:
         return
@@ -258,7 +258,7 @@ def create_folder(folder_name):
 
     except Exception as e:
         print(f"❌ Erro ao criar pasta: {e}")
-        return None  # Retorna None caso ocorra um erro
+        return None
 
 def upload_file_to_drive(file_path, folder_id=None):
     """Faz upload de um arquivo para uma pasta no Google Drive e retorna o link público."""
@@ -282,12 +282,10 @@ def upload_images_to_drive(file_paths, folder_id):
         
         uploaded_file_ids = []
         for file_path in file_paths:
-            file_name = os.path.basename(file_path)  # 🔹 Pega apenas o nome do arquivo
-            
+            file_name = os.path.basename(file_path)
             file_metadata = {"name": file_name, "parents": [folder_id]}
             media = MediaFileUpload(file_path, mimetype="image/jpeg", resumable=True)
             file = service.files().create(body=file_metadata, media_body=media, fields="id").execute()
-            
             uploaded_file_ids.append(file.get("id"))
 
         return uploaded_file_ids
@@ -307,69 +305,7 @@ def download_file(file_id, output_path):
                 _, done = downloader.next_chunk()
     except Exception as e:
         print(f"❌ Erro ao baixar arquivo: {e}")
-        
-def list_files_in_folder(folder_id):
-    """Lista todos os arquivos dentro da pasta do Google Drive (debug)."""
-    service = get_google_drive_service()
-    if not service:
-        return []
 
-    try:
-        results = service.files().list(
-            q=f"'{folder_id}' in parents and trashed=false",
-            fields="files(id, name)"
-        ).execute()
-        return results.get("files", [])
-    except Exception as e:
-        st.error(f"❌ Erro ao listar arquivos na pasta: {e}")
-        return []
-
-def load_database_into_memory():
-    """Carrega o banco de dados do Google Drive para a memória."""
-
-    service = get_google_drive_service()
-    if not service:
-        return None
-
-    st.write("🔄 Buscando banco de dados no Google Drive...")
-
-    # 🔹 LISTA TODOS OS ARQUIVOS NA PASTA PARA DEBUG
-    files_in_drive = list_files_in_folder(FLEETBD_FOLDER_ID)
-    st.write("📂 Arquivos encontrados na pasta:", files_in_drive)
-
-    # 🔹 TENTAR ENCONTRAR O BANCO EXATO NO DRIVE
-    existing_files = [
-        file for file in files_in_drive if file["name"].strip() == DB_FILE_NAME
-    ]
-
-    if not existing_files:
-        st.error(f"❌ O banco de dados '{DB_FILE_NAME}' não foi encontrado no Google Drive!")
-        return None
-
-    file_id = existing_files[0]["id"]
-    request = service.files().get_media(fileId=file_id)
-
-    file_stream = io.BytesIO()
-    downloader = MediaIoBaseDownload(file_stream, request)
-    done = False
-    while not done:
-        _, done = downloader.next_chunk()
-
-    file_stream.seek(0)  # Retorna ao início do stream
-
-    # Conecta ao banco de dados diretamente da memória
-    conn = sqlite3.connect(":memory:")  # Criar um banco SQLite temporário na RAM
-    with conn:
-        with open("temp_db.sqlite", "wb") as temp_db:
-            temp_db.write(file_stream.read())  # Salva temporariamente para conexão
-
-        temp_conn = sqlite3.connect("temp_db.sqlite")
-        temp_conn.backup(conn)  # Copia os dados para o banco na memória
-        temp_conn.close()
-    
-    st.success("✅ Banco de dados carregado da nuvem para a memória!")
-    return conn
-    
 def get_folder_id_by_name(folder_name):
     """Busca o ID de uma pasta pelo nome, se ela já existir no Google Drive."""
     try:
@@ -393,7 +329,7 @@ def update_file(file_id, new_file_path):
     except Exception as e:
         print(f"❌ Erro ao atualizar arquivo {file_id}: {e}")
         return None
-    
+
 def create_subfolder(parent_folder_id, subfolder_name):
     """
     Cria uma subpasta dentro de uma pasta principal no Google Drive.
@@ -401,8 +337,6 @@ def create_subfolder(parent_folder_id, subfolder_name):
     """
     try:
         service = get_google_drive_service()
-
-        # Verifica se a subpasta já existe
         query = f"name='{subfolder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false and '{parent_folder_id}' in parents"
         results = service.files().list(q=query, fields="files(id, name)").execute()
         folders = results.get("files", [])
@@ -411,7 +345,6 @@ def create_subfolder(parent_folder_id, subfolder_name):
             print(f"📂 Subpasta '{subfolder_name}' já existe. Usando ID existente: {folders[0]['id']}")
             return folders[0]['id']
 
-        # Criar a subpasta se não existir
         file_metadata = {
             "name": subfolder_name,
             "mimeType": "application/vnd.google-apps.folder",
