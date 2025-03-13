@@ -182,33 +182,12 @@ if "user_type" not in st.session_state:
 if "user_name" not in st.session_state:
     st.session_state["user_name"] = None
 
-# Exibe o menu lateral sempre
-st.sidebar.title("⚙️ Configuração do Banco de Dados")
-
-# Upload do banco de dados (disponível na barra lateral)
-st.sidebar.subheader("📤 Enviar um novo banco de dados")
-uploaded_file = st.sidebar.file_uploader("Escolha um arquivo (.db)", type=["db"])
-
-if uploaded_file is not None:
-    new_db_path = os.path.join(os.path.dirname(DB_PATH), "fleet_management_uploaded.db")
-    with open(new_db_path, "wb") as f:
-        f.write(uploaded_file.getbuffer())
-    # Substituir o banco de dados principal pelo novo
-    os.replace(new_db_path, DB_PATH)
-    st.sidebar.success("✅ Banco de dados atualizado com sucesso! Reinicie o sistema.")
-    st.stop()
-
-# Botão para salvar (fazer upload) o banco de dados existente no Google Drive
-st.sidebar.subheader("☁️ Backup no Google Drive")
-if st.sidebar.button("Salvar banco de dados na nuvem"):
-    upload_database()
-
 # Se o banco de dados não existir, exibe um aviso
 if not os.path.exists(DB_PATH):
     st.sidebar.error("❌ Banco de dados não encontrado! O sistema não pode continuar sem um banco válido.")
     st.stop()
 
-# Se o banco existir, exibe a tela de login
+# Se o usuário não estiver autenticado, exibe a tela de login sem mostrar a Configuração do Banco de Dados
 if not st.session_state["authenticated"]:
     user_info = login_screen()
     if user_info:
@@ -217,10 +196,31 @@ if not st.session_state["authenticated"]:
         st.session_state["user_type"] = user_info["user_type"]
         st.rerun()
 else:
+    # Exibe a seção de Configuração do Banco de Dados somente após o login
+    st.sidebar.title("⚙️ Configuração do Banco de Dados")
+    
+    # Upload do banco de dados (disponível na barra lateral)
+    st.sidebar.subheader("📤 Enviar um novo banco de dados")
+    uploaded_file = st.sidebar.file_uploader("Escolha um arquivo (.db)", type=["db"])
+    if uploaded_file is not None:
+        new_db_path = os.path.join(os.path.dirname(DB_PATH), "fleet_management_uploaded.db")
+        with open(new_db_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        # Substituir o banco de dados principal pelo novo
+        os.replace(new_db_path, DB_PATH)
+        st.sidebar.success("✅ Banco de dados atualizado com sucesso! Reinicie o sistema.")
+        st.stop()
+
+    # Botão para salvar (fazer upload) o banco de dados existente no Google Drive
+    st.sidebar.subheader("☁️ Backup no Google Drive")
+    if st.sidebar.button("Salvar banco de dados na nuvem"):
+        upload_database()
+
+    # Exibe informações do usuário na barra lateral
     st.sidebar.write(f"👤 **Usuário:** {st.session_state.get('user_name', 'Desconhecido')}")
     st.sidebar.write(f"🔑 **Permissão:** {st.session_state.get('user_type', 'Desconhecido')}")
 
-    # Exibe botão de download do backup para ADMINs
+    # Se o usuário for ADMIN, exibe botão para download do backup
     if st.session_state.get("user_type") == "ADMIN":
         st.sidebar.subheader("⚙️ Configurações Avançadas")
         with open(DB_PATH, "rb") as file:
@@ -231,41 +231,41 @@ else:
                 mime="application/octet-stream"
             )
 
-    # Define as opções de menu de acordo com o tipo de usuário
-    if st.session_state.get("user_type") == "OPE":
-        menu_options = ["Gerenciar Perfil", "Novo Checklist", "Novo Abastecimento", "Logout"]
-    else:  # ADMIN
-        menu_options = [
-            "Gerenciar Perfil", "Cadastrar Usuário", "Gerenciar Usuários", "Cadastrar Veículo",
-            "Gerenciar Veículos", "Novo Checklist", "Gerenciar Checklists", "Novo Abastecimento",
-            "Gerenciar Abastecimentos", "Dashboards", "Chatbot IA 🤖", "Logout"
-        ]
-    menu_option = st.sidebar.radio("🚗 **Menu Principal**", menu_options)
+# Define as opções de menu de acordo com o tipo de usuário
+if st.session_state.get("user_type") == "OPE":
+    menu_options = ["Gerenciar Perfil", "Novo Checklist", "Novo Abastecimento", "Logout"]
+else:  # ADMIN
+    menu_options = [
+        "Gerenciar Perfil", "Cadastrar Usuário", "Gerenciar Usuários", "Cadastrar Veículo",
+        "Gerenciar Veículos", "Novo Checklist", "Gerenciar Checklists", "Novo Abastecimento",
+        "Gerenciar Abastecimentos", "Dashboards", "Chatbot IA 🤖", "Logout"
+    ]
+menu_option = st.sidebar.radio("🚗 **Menu Principal**", menu_options)
 
-    # Controle das telas de navegação
-    if menu_option == "Gerenciar Perfil":
-        user_control_screen()
-    elif menu_option == "Cadastrar Usuário":
-        user_create_screen()
-    elif menu_option == "Gerenciar Usuários" and st.session_state["user_type"] == "ADMIN":
-        user_list_edit_screen()
-    elif menu_option == "Cadastrar Veículo" and st.session_state["user_type"] == "ADMIN":
-        veiculo_create_screen()
-    elif menu_option == "Gerenciar Veículos" and st.session_state["user_type"] == "ADMIN":
-        veiculo_list_edit_screen()
-    elif menu_option == "Novo Checklist":
-        checklist_create_screen()
-    elif menu_option == "Gerenciar Checklists" and st.session_state["user_type"] == "ADMIN":
-        checklist_list_screen()
-    elif menu_option == "Novo Abastecimento":
-        abastecimento_create_screen()
-    elif menu_option == "Gerenciar Abastecimentos" and st.session_state["user_type"] == "ADMIN":
-        abastecimento_list_edit_screen()
-    elif menu_option == "Dashboards" and st.session_state["user_type"] == "ADMIN":
-        screen_dash()
-    elif menu_option == "Chatbot IA 🤖":
-        screen_ia()
-    elif menu_option == "Logout":
-        st.session_state.clear()
-        st.success("✅ Você saiu do sistema! Redirecionando... 🔄")
-        st.rerun()
+# Controle das telas de navegação
+if menu_option == "Gerenciar Perfil":
+    user_control_screen()
+elif menu_option == "Cadastrar Usuário":
+    user_create_screen()
+elif menu_option == "Gerenciar Usuários" and st.session_state["user_type"] == "ADMIN":
+    user_list_edit_screen()
+elif menu_option == "Cadastrar Veículo" and st.session_state["user_type"] == "ADMIN":
+    veiculo_create_screen()
+elif menu_option == "Gerenciar Veículos" and st.session_state["user_type"] == "ADMIN":
+    veiculo_list_edit_screen()
+elif menu_option == "Novo Checklist":
+    checklist_create_screen()
+elif menu_option == "Gerenciar Checklists" and st.session_state["user_type"] == "ADMIN":
+    checklist_list_screen()
+elif menu_option == "Novo Abastecimento":
+    abastecimento_create_screen()
+elif menu_option == "Gerenciar Abastecimentos" and st.session_state["user_type"] == "ADMIN":
+    abastecimento_list_edit_screen()
+elif menu_option == "Dashboards" and st.session_state["user_type"] == "ADMIN":
+    screen_dash()
+elif menu_option == "Chatbot IA 🤖":
+    screen_ia()
+elif menu_option == "Logout":
+    st.session_state.clear()
+    st.success("✅ Você saiu do sistema! Redirecionando... 🔄")
+    st.rerun()
