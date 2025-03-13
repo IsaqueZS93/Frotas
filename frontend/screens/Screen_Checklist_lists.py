@@ -18,8 +18,7 @@ from backend.db_models.DB_Models_User import get_user_by_id
 from backend.services.Service_Google_Drive import (
     search_files, 
     list_files_in_folder, 
-    get_folder_id_by_name,
-    upload_images_to_drive  # Função para capturar as imagens
+    get_folder_id_by_name
 )
 from backend.services.Service_Email import send_email  # Função para enviar email
 
@@ -96,21 +95,27 @@ def checklist_list_screen():
             with col2:
                 st.subheader("📸 Fotos do Veículo")
                 if checklist["fotos"]:
+                    # Lista os nomes dos arquivos esperados (assumindo que o checklist armazena os caminhos locais)
                     local_image_paths = checklist["fotos"].split("|")
-                    # Buscar a pasta da placa dentro da pasta Checklists
+                    expected_filenames = [os.path.basename(path) for path in local_image_paths]
+                    
+                    # Buscar a pasta correspondente à placa dentro da pasta Checklists
                     pasta_veiculo_id = get_folder_id_by_name(checklist["placa"])
                     if pasta_veiculo_id:
-                        # Faz o upload (caso ainda não estejam no Drive) e captura as informações das imagens
-                        uploaded_images = upload_images_to_drive(local_image_paths, pasta_veiculo_id)
-                        if uploaded_images:
-                            for idx, imagem in enumerate(uploaded_images, start=1):
+                        # Utiliza a função search_files para obter os arquivos na pasta com os campos necessários
+                        arquivos = search_files(f"'{pasta_veiculo_id}' in parents and trashed=false")
+                        # Filtra somente os arquivos que correspondem aos nomes esperados
+                        imagens = [arq for arq in arquivos if arq.get("name") in expected_filenames]
+                        
+                        if imagens:
+                            for idx, imagem in enumerate(imagens, start=1):
                                 link = imagem.get("webViewLink")
                                 if link:
                                     st.markdown(f"[Visualizar Imagem {idx}]({link})", unsafe_allow_html=True)
                                 else:
                                     st.info("Imagem sem link disponível.")
                         else:
-                            st.info("📌 Nenhuma imagem foi carregada para esta placa.")
+                            st.info("📌 Nenhuma imagem encontrada na pasta para esta placa.")
                     else:
                         st.info("📌 Nenhuma pasta correspondente encontrada para esta placa no Google Drive.")
                 else:
