@@ -35,7 +35,7 @@ FLEETBD_FOLDER_ID = "1dPaautky1YLzYiH1IOaxgItu_GZSaxcO"
 def get_google_drive_service():
     """
     Autentica no Google Drive e retorna um serviço da API.
-
+    
     - Primeiro, tenta carregar as credenciais do st.secrets.
     - Se não encontrar, solicita ao usuário que cole manualmente o JSON de autenticação.
     - Converte e valida o JSON antes de autenticar.
@@ -43,7 +43,6 @@ def get_google_drive_service():
     st.write("🔍 Tentando autenticação no Google Drive...")
     credentials_json = None
 
-    # Tenta obter credenciais dos segredos do Streamlit (útil na nuvem)
     if "GOOGLE_CREDENTIALS" in st.secrets:
         try:
             credentials_json = {
@@ -62,7 +61,6 @@ def get_google_drive_service():
         except Exception as e:
             st.error("⚠️ Erro ao carregar credenciais do secrets.toml: " + str(e))
 
-    # Se não encontrar, solicita o JSON manualmente
     if not credentials_json:
         json_input = st.text_area("📥 Cole seu JSON de autenticação do Google Drive aqui:", height=250)
         if st.button("🔑 Autenticar"):
@@ -88,7 +86,6 @@ def get_google_drive_service():
 
 def upload_database():
     """Envia ou atualiza o banco de dados no Google Drive na pasta definida."""
-    # Verifica se o banco de dados existe antes do upload
     if not os.path.exists(DB_PATH):
         st.error("❌ Erro: O banco de dados não foi encontrado localmente. Nenhum upload foi realizado.")
         return
@@ -97,13 +94,9 @@ def upload_database():
     if not service:
         return
 
-    file_metadata = {
-        "name": DB_FILE_NAME,
-        "parents": [FLEETBD_FOLDER_ID]
-    }
+    file_metadata = {"name": DB_FILE_NAME, "parents": [FLEETBD_FOLDER_ID]}
     media = MediaFileUpload(DB_PATH, resumable=True)
 
-    # Verifica se já existe um arquivo com o mesmo nome na pasta
     existing_files = service.files().list(
         q=f"name='{DB_FILE_NAME}' and '{FLEETBD_FOLDER_ID}' in parents",
         fields="files(id)"
@@ -136,7 +129,7 @@ from frontend.screens.Screen_Checklist_lists import checklist_list_screen
 from frontend.screens.Screen_Abastecimento_Create import abastecimento_create_screen
 from frontend.screens.Screen_Abastecimento_List_Edit import abastecimento_list_edit_screen
 from frontend.screens.Screen_Dash import screen_dash
-from frontend.screens.Screen_IA import screen_ia  # ✅ Importa a tela do chatbot IA
+from frontend.screens.Screen_IA import screen_ia  # Tela do chatbot IA
 
 # Configuração inicial do Streamlit com tema azul claro
 st.set_page_config(page_title="Gestão de Frotas", layout="wide")
@@ -182,14 +175,14 @@ if "user_type" not in st.session_state:
 if "user_name" not in st.session_state:
     st.session_state["user_name"] = None
 
-# Se o banco de dados não existir, exibe um aviso e interrompe a execução
+# Verifica se o banco de dados existe; se não, exibe erro e para a execução
 if not os.path.exists(DB_PATH):
     st.error("❌ Banco de dados não encontrado! O sistema não pode continuar sem um banco válido.")
     st.stop()
 
-# Se o usuário não estiver autenticado, exibe a tela de login sem qualquer conteúdo na barra lateral
+# Se o usuário não estiver autenticado, exibe somente a tela de login e NÃO exibe a sidebar
 if not st.session_state["authenticated"]:
-    # Limpa a sidebar para que nada seja exibido
+    # Limpa a sidebar para não exibir nada
     st.sidebar.empty()
     user_info = login_screen()
     if user_info:
@@ -198,17 +191,16 @@ if not st.session_state["authenticated"]:
         st.session_state["user_type"] = user_info["user_type"]
         st.experimental_rerun()
 else:
-    # Exibe a barra lateral somente após o login
+    # Exibe a sidebar somente após o login
     st.sidebar.title("⚙️ Configuração do Banco de Dados")
     
-    # Upload do banco de dados (disponível na barra lateral)
+    # Upload do banco de dados (disponível na sidebar)
     st.sidebar.subheader("📤 Enviar um novo banco de dados")
     uploaded_file = st.sidebar.file_uploader("Escolha um arquivo (.db)", type=["db"])
     if uploaded_file is not None:
         new_db_path = os.path.join(os.path.dirname(DB_PATH), "fleet_management_uploaded.db")
         with open(new_db_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
-        # Substituir o banco de dados principal pelo novo
         os.replace(new_db_path, DB_PATH)
         st.sidebar.success("✅ Banco de dados atualizado com sucesso! Reinicie o sistema.")
         st.stop()
@@ -218,11 +210,11 @@ else:
     if st.sidebar.button("Salvar banco de dados na nuvem"):
         upload_database()
 
-    # Exibe informações do usuário na barra lateral
+    # Exibe informações do usuário na sidebar
     st.sidebar.write(f"👤 **Usuário:** {st.session_state.get('user_name', 'Desconhecido')}")
     st.sidebar.write(f"🔑 **Permissão:** {st.session_state.get('user_type', 'Desconhecido')}")
     
-    # Se o usuário for ADMIN, exibe botão para download do backup
+    # Se o usuário for ADMIN, exibe também o botão para download do backup
     if st.session_state.get("user_type") == "ADMIN":
         st.sidebar.subheader("⚙️ Configurações Avançadas")
         with open(DB_PATH, "rb") as file:
@@ -236,7 +228,7 @@ else:
 # Define as opções de menu de acordo com o tipo de usuário
 if st.session_state.get("user_type") == "OPE":
     menu_options = ["Gerenciar Perfil", "Novo Checklist", "Novo Abastecimento", "Logout"]
-else:  # ADMIN
+else:  # ADMIN inclui também a opção de Chatbot IA
     menu_options = [
         "Gerenciar Perfil", "Cadastrar Usuário", "Gerenciar Usuários", "Cadastrar Veículo",
         "Gerenciar Veículos", "Novo Checklist", "Gerenciar Checklists", "Novo Abastecimento",
@@ -244,7 +236,7 @@ else:  # ADMIN
     ]
 menu_option = st.sidebar.radio("🚗 **Menu Principal**", menu_options)
 
-# Controle das telas de navegação
+# Controle de navegação conforme a opção escolhida
 if menu_option == "Gerenciar Perfil":
     user_control_screen()
 elif menu_option == "Cadastrar Usuário":
@@ -265,9 +257,9 @@ elif menu_option == "Gerenciar Abastecimentos" and st.session_state["user_type"]
     abastecimento_list_edit_screen()
 elif menu_option == "Dashboards" and st.session_state["user_type"] == "ADMIN":
     screen_dash()
-elif menu_option == "Chatbot IA 🤖":
+elif menu_option == "Chatbot IA 🤖" and st.session_state["user_type"] == "ADMIN":
     screen_ia()
 elif menu_option == "Logout":
     st.session_state.clear()
     st.success("✅ Você saiu do sistema! Redirecionando... 🔄")
-    st.experimental_rerun()
+    st.rerun()
