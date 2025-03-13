@@ -28,7 +28,6 @@ PASTA_CHECKLISTS_ID = "10T2UHhc-wQXWRDj-Kc5F_dAHUM5F1TrK"
 
 def checklist_list_screen():
     """Tela para listar, editar e excluir checklists."""
-
     st.title("📋 Listagem e Gerenciamento de Checklists")
 
     # 🔹 Verifica se o usuário está logado
@@ -93,10 +92,9 @@ def checklist_list_screen():
                 st.write(f"🦺 **Itens de Segurança:** {'✅ OK' if checklist['itens_seguranca_ok'] else '❌ Problema'}")
                 st.write(f"📝 **Observações:** {checklist['observacoes'] if checklist['observacoes'] else 'Nenhuma observação registrada.'}")
 
-            # 🔹 Buscar e exibir imagens no Google Drive
+            # 🔹 Buscar e exibir imagens no Google Drive como links
             with col2:
                 st.subheader("📸 Fotos do Veículo")
-                # Se o campo 'fotos' contiver caminhos locais separados por "|"
                 if checklist["fotos"]:
                     local_image_paths = checklist["fotos"].split("|")
                     # Buscar a pasta da placa dentro da pasta Checklists
@@ -105,10 +103,10 @@ def checklist_list_screen():
                         # Faz o upload (caso ainda não estejam no Drive) e captura as informações das imagens
                         uploaded_images = upload_images_to_drive(local_image_paths, pasta_veiculo_id)
                         if uploaded_images:
-                            for imagem in uploaded_images:
+                            for idx, imagem in enumerate(uploaded_images, start=1):
                                 link = imagem.get("webViewLink")
                                 if link:
-                                    st.markdown(f"[🖼 Visualizar Imagem]({link})", unsafe_allow_html=True)
+                                    st.markdown(f"[Visualizar Imagem {idx}]({link})", unsafe_allow_html=True)
                                 else:
                                     st.info("Imagem sem link disponível.")
                         else:
