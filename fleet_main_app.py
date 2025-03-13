@@ -1,8 +1,130 @@
 import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam adicionados corretamente
 import streamlit as st
 import os
-from backend.database.db_fleet import create_database, DB_PATH
+import io
+import json
+import sqlite3
+from dotenv import load_dotenv
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 
+# Carregar variáveis de ambiente (útil para ambientes locais)
+load_dotenv()
+
+# Definição dos escopos de acesso atualizados (gerenciar, ler e acessar metadados)
+SCOPES = [
+    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/drive.metadata.readonly"
+]
+
+# Configurações do banco de dados
+from backend.database.db_fleet import create_database, DB_PATH
+DB_FILE_NAME = "fleet_management.db"
+
+# Novo ID da pasta para salvar o banco de dados no Google Drive
+FLEETBD_FOLDER_ID = "1dPaautky1YLzYiH1IOaxgItu_GZSaxcO"
+
+##########################################
+# FUNÇÕES DE INTEGRAÇÃO COM O GOOGLE DRIVE #
+##########################################
+
+def get_google_drive_service():
+    """
+    Autentica no Google Drive e retorna um serviço da API.
+
+    - Primeiro, tenta carregar as credenciais do st.secrets.
+    - Se não encontrar, solicita ao usuário que cole manualmente o JSON de autenticação.
+    - Converte e valida o JSON antes de autenticar.
+    """
+    st.write("🔍 Tentando autenticação no Google Drive...")
+    credentials_json = None
+
+    # Tenta obter credenciais dos segredos do Streamlit (útil na nuvem)
+    if "GOOGLE_CREDENTIALS" in st.secrets:
+        try:
+            credentials_json = {
+                "type": st.secrets["GOOGLE_CREDENTIALS"]["type"],
+                "project_id": st.secrets["GOOGLE_CREDENTIALS"]["project_id"],
+                "private_key_id": st.secrets["GOOGLE_CREDENTIALS"]["private_key_id"],
+                "private_key": st.secrets["GOOGLE_CREDENTIALS"]["private_key"].replace("\\n", "\n"),
+                "client_email": st.secrets["GOOGLE_CREDENTIALS"]["client_email"],
+                "client_id": st.secrets["GOOGLE_CREDENTIALS"]["client_id"],
+                "auth_uri": st.secrets["GOOGLE_CREDENTIALS"]["auth_uri"],
+                "token_uri": st.secrets["GOOGLE_CREDENTIALS"]["token_uri"],
+                "auth_provider_x509_cert_url": st.secrets["GOOGLE_CREDENTIALS"]["auth_provider_x509_cert_url"],
+                "client_x509_cert_url": st.secrets["GOOGLE_CREDENTIALS"]["client_x509_cert_url"],
+                "universe_domain": st.secrets["GOOGLE_CREDENTIALS"]["universe_domain"],
+            }
+        except Exception as e:
+            st.error("⚠️ Erro ao carregar credenciais do secrets.toml: " + str(e))
+
+    # Se não encontrar, solicita o JSON manualmente
+    if not credentials_json:
+        json_input = st.text_area("📥 Cole seu JSON de autenticação do Google Drive aqui:", height=250)
+        if st.button("🔑 Autenticar"):
+            try:
+                credentials_json = json.loads(json_input)
+                credentials_json["private_key"] = credentials_json["private_key"].replace("\\n", "\n")
+                st.success("✅ JSON válido! Prosseguindo com a autenticação.")
+            except Exception as e:
+                st.error("❌ JSON inválido. Verifique o formato: " + str(e))
+                return None
+
+    if not credentials_json:
+        st.error("❌ Nenhuma credencial válida encontrada. Autenticação abortada.")
+        return None
+
+    try:
+        creds = Credentials.from_service_account_info(credentials_json, scopes=SCOPES)
+        st.success("✅ Autenticado via Conta de Serviço com sucesso!")
+        return build("drive", "v3", credentials=creds)
+    except Exception as e:
+        st.error("❌ Erro ao autenticar no Google Drive: " + str(e))
+        return None
+
+def upload_database():
+    """Envia ou atualiza o banco de dados no Google Drive na pasta definida."""
+    # Verifica se o banco de dados existe antes do upload
+    if not os.path.exists(DB_PATH):
+        st.error("❌ Erro: O banco de dados não foi encontrado localmente. Nenhum upload foi realizado.")
+        return
+
+    service = get_google_drive_service()
+    if not service:
+        return
+
+    file_metadata = {
+        "name": DB_FILE_NAME,
+        "parents": [FLEETBD_FOLDER_ID]
+    }
+    media = MediaFileUpload(DB_PATH, resumable=True)
+
+    # Verifica se já existe um arquivo com o mesmo nome na pasta
+    existing_files = service.files().list(
+        q=f"name='{DB_FILE_NAME}' and '{FLEETBD_FOLDER_ID}' in parents",
+        fields="files(id)"
+    ).execute().get("files", [])
+
+    try:
+        if existing_files:
+            file_id = existing_files[0]["id"]
+            service.files().update(fileId=file_id, media_body=media).execute()
+            st.sidebar.success("✅ Banco de dados atualizado no Google Drive!")
+        else:
+            service.files().create(body=file_metadata, media_body=media).execute()
+            st.sidebar.success("✅ Banco de dados salvo no Google Drive pela primeira vez!")
+    except Exception as e:
+        st.sidebar.error("❌ Erro ao enviar o banco de dados: " + str(e))
+
+##########################################
+# FIM DAS FUNÇÕES DE INTEGRAÇÃO COM O DRIVE #
+##########################################
+
+# IMPORTAÇÃO DAS TELAS DO SISTEMA
 from frontend.screens.Screen_Login import login_screen
 from frontend.screens.Screen_User_Create import user_create_screen
 from frontend.screens.Screen_User_List_Edit import user_list_edit_screen
@@ -16,10 +138,10 @@ from frontend.screens.Screen_Abastecimento_List_Edit import abastecimento_list_e
 from frontend.screens.Screen_Dash import screen_dash
 from frontend.screens.Screen_IA import screen_ia  # ✅ Importa a tela do chatbot IA
 
-# 🔹 Configuração inicial do Streamlit com tema azul claro
+# Configuração inicial do Streamlit com tema azul claro
 st.set_page_config(page_title="Gestão de Frotas", layout="wide")
 
-# 🔹 Estilização personalizada para um tema azul claro
+# Estilização personalizada para um tema azul claro
 custom_style = """
     <style>
     body {
@@ -52,7 +174,7 @@ custom_style = """
 """
 st.markdown(custom_style, unsafe_allow_html=True)
 
-# 🔹 Inicializa as variáveis de estado
+# Inicializa as variáveis de estado
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 if "user_type" not in st.session_state:
@@ -60,10 +182,10 @@ if "user_type" not in st.session_state:
 if "user_name" not in st.session_state:
     st.session_state["user_name"] = None
 
-# 🔹 Exibe o menu lateral sempre
+# Exibe o menu lateral sempre
 st.sidebar.title("⚙️ Configuração do Banco de Dados")
 
-# 🔹 Upload do banco de dados SEMPRE disponível no menu lateral
+# Upload do banco de dados (disponível na barra lateral)
 st.sidebar.subheader("📤 Enviar um novo banco de dados")
 uploaded_file = st.sidebar.file_uploader("Escolha um arquivo (.db)", type=["db"])
 
@@ -71,18 +193,22 @@ if uploaded_file is not None:
     new_db_path = os.path.join(os.path.dirname(DB_PATH), "fleet_management_uploaded.db")
     with open(new_db_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
-
     # Substituir o banco de dados principal pelo novo
     os.replace(new_db_path, DB_PATH)
     st.sidebar.success("✅ Banco de dados atualizado com sucesso! Reinicie o sistema.")
     st.stop()
 
-# 🔹 Se o banco de dados não existir, exibe um aviso
+# Botão para salvar (fazer upload) o banco de dados existente no Google Drive
+st.sidebar.subheader("☁️ Backup no Google Drive")
+if st.sidebar.button("Salvar banco de dados na nuvem"):
+    upload_database()
+
+# Se o banco de dados não existir, exibe um aviso
 if not os.path.exists(DB_PATH):
     st.sidebar.error("❌ Banco de dados não encontrado! O sistema não pode continuar sem um banco válido.")
     st.stop()
 
-# 🔹 Se o banco existir, exibe a tela de login
+# Se o banco existir, exibe a tela de login
 if not st.session_state["authenticated"]:
     user_info = login_screen()
     if user_info:
@@ -90,16 +216,13 @@ if not st.session_state["authenticated"]:
         st.session_state["user_name"] = user_info["user_name"]
         st.session_state["user_type"] = user_info["user_type"]
         st.rerun()
-
-# 🔹 Exibir menu lateral após login
 else:
     st.sidebar.write(f"👤 **Usuário:** {st.session_state.get('user_name', 'Desconhecido')}")
     st.sidebar.write(f"🔑 **Permissão:** {st.session_state.get('user_type', 'Desconhecido')}")
 
-    # 🔹 Exibir botão de backup para ADMINs
+    # Exibe botão de download do backup para ADMINs
     if st.session_state.get("user_type") == "ADMIN":
         st.sidebar.subheader("⚙️ Configurações Avançadas")
-        # 🔹 Botão para download do banco de dados
         with open(DB_PATH, "rb") as file:
             st.sidebar.download_button(
                 label="📥 Baixar Backup do Banco",
@@ -117,10 +240,9 @@ else:
             "Gerenciar Veículos", "Novo Checklist", "Gerenciar Checklists", "Novo Abastecimento",
             "Gerenciar Abastecimentos", "Dashboards", "Chatbot IA 🤖", "Logout"
         ]
-
     menu_option = st.sidebar.radio("🚗 **Menu Principal**", menu_options)
 
-    # 🔹 Controle das telas de navegação
+    # Controle das telas de navegação
     if menu_option == "Gerenciar Perfil":
         user_control_screen()
     elif menu_option == "Cadastrar Usuário":
