@@ -182,21 +182,23 @@ if "user_type" not in st.session_state:
 if "user_name" not in st.session_state:
     st.session_state["user_name"] = None
 
-# Se o banco de dados não existir, exibe um aviso
+# Se o banco de dados não existir, exibe um aviso e interrompe a execução
 if not os.path.exists(DB_PATH):
-    st.sidebar.error("❌ Banco de dados não encontrado! O sistema não pode continuar sem um banco válido.")
+    st.error("❌ Banco de dados não encontrado! O sistema não pode continuar sem um banco válido.")
     st.stop()
 
-# Se o usuário não estiver autenticado, exibe a tela de login sem mostrar a Configuração do Banco de Dados
+# Se o usuário não estiver autenticado, exibe a tela de login sem qualquer conteúdo na barra lateral
 if not st.session_state["authenticated"]:
+    # Limpa a sidebar para que nada seja exibido
+    st.sidebar.empty()
     user_info = login_screen()
     if user_info:
         st.session_state["authenticated"] = True
         st.session_state["user_name"] = user_info["user_name"]
         st.session_state["user_type"] = user_info["user_type"]
-        st.rerun()
+        st.experimental_rerun()
 else:
-    # Exibe a seção de Configuração do Banco de Dados somente após o login
+    # Exibe a barra lateral somente após o login
     st.sidebar.title("⚙️ Configuração do Banco de Dados")
     
     # Upload do banco de dados (disponível na barra lateral)
@@ -219,7 +221,7 @@ else:
     # Exibe informações do usuário na barra lateral
     st.sidebar.write(f"👤 **Usuário:** {st.session_state.get('user_name', 'Desconhecido')}")
     st.sidebar.write(f"🔑 **Permissão:** {st.session_state.get('user_type', 'Desconhecido')}")
-
+    
     # Se o usuário for ADMIN, exibe botão para download do backup
     if st.session_state.get("user_type") == "ADMIN":
         st.sidebar.subheader("⚙️ Configurações Avançadas")
@@ -268,4 +270,4 @@ elif menu_option == "Chatbot IA 🤖":
 elif menu_option == "Logout":
     st.session_state.clear()
     st.success("✅ Você saiu do sistema! Redirecionando... 🔄")
-    st.rerun()
+    st.experimental_rerun()
