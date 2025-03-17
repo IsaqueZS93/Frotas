@@ -182,8 +182,38 @@ if "user_type" not in st.session_state:
 if "user_name" not in st.session_state:
     st.session_state["user_name"] = None
 
-# Exibe o menu lateral de usuário autenticado
-if st.session_state["authenticated"]:
+############################################
+# Verificação do Banco de Dados (Upload caso não seja encontrado)
+############################################
+if not os.path.exists(DB_PATH):
+    st.sidebar.warning("❌ Banco de dados não reconhecido! Faça o upload de um novo banco de dados para prosseguir.")
+    uploaded_file = st.sidebar.file_uploader("Escolha um arquivo (.db)", type=["db"])
+    if uploaded_file is not None:
+        new_db_path = os.path.join(os.path.dirname(DB_PATH), "fleet_management_uploaded.db")
+        with open(new_db_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        # Substituir o banco de dados principal pelo novo
+        os.replace(new_db_path, DB_PATH)
+        st.sidebar.success("✅ Banco de dados atualizado com sucesso! Reinicie o sistema.")
+        st.stop()
+    else:
+        st.info("Por favor, faça o upload do banco de dados para prosseguir.")
+        st.stop()
+
+############################################
+# Fluxo do Sistema
+############################################
+
+# Se o usuário ainda não estiver autenticado, exibe a tela de login
+if not st.session_state["authenticated"]:
+    user_info = login_screen()
+    if user_info:
+        st.session_state["authenticated"] = True
+        st.session_state["user_name"] = user_info["user_name"]
+        st.session_state["user_type"] = user_info["user_type"]
+        st.experimental_rerun()
+else:
+    # Menu lateral para usuário autenticado
     st.sidebar.title("⚙️ Configuração do Banco de Dados")
     
     # Upload do banco de dados (disponível na barra lateral)
@@ -203,20 +233,6 @@ if st.session_state["authenticated"]:
     if st.sidebar.button("Salvar banco de dados na nuvem"):
         upload_database()
 
-# Se o banco de dados não existir, exibe um aviso
-if not os.path.exists(DB_PATH):
-    st.sidebar.error("❌ Banco de dados não encontrado! O sistema não pode continuar sem um banco válido.")
-    st.stop()
-
-# Se o usuário ainda não estiver autenticado, exibe a tela de login
-if not st.session_state["authenticated"]:
-    user_info = login_screen()
-    if user_info:
-        st.session_state["authenticated"] = True
-        st.session_state["user_name"] = user_info["user_name"]
-        st.session_state["user_type"] = user_info["user_type"]
-        st.rerun()
-else:
     st.sidebar.write(f"👤 **Usuário:** {st.session_state.get('user_name', 'Desconhecido')}")
     st.sidebar.write(f"🔑 **Permissão:** {st.session_state.get('user_type', 'Desconhecido')}")
 
