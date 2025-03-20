@@ -35,10 +35,6 @@ FLEETBD_FOLDER_ID = "1dPaautky1YLzYiH1IOaxgItu_GZSaxcO"
 def get_google_drive_service():
     """
     Autentica no Google Drive e retorna um serviço da API.
-
-    - Primeiro, tenta carregar as credenciais do st.secrets.
-    - Se não encontrar, solicita ao usuário que cole manualmente o JSON de autenticação.
-    - Converte e valida o JSON antes de autenticar.
     """
     st.write("🔍 Tentando autenticação no Google Drive...")
     credentials_json = None
@@ -86,9 +82,33 @@ def get_google_drive_service():
         st.error("❌ Erro ao autenticar no Google Drive: " + str(e))
         return None
 
+def download_database():
+    """Baixa o banco de dados do Google Drive e substitui o local."""
+    service = get_google_drive_service()
+    if not service:
+        return
+
+    existing_files = service.files().list(
+        q=f"name='{DB_FILE_NAME}' and '{FLEETBD_FOLDER_ID}' in parents",
+        fields="files(id)"
+    ).execute().get("files", [])
+
+    if not existing_files:
+        st.warning("⚠️ Nenhum backup encontrado no Google Drive. Criando um novo banco local.")
+        return
+
+    file_id = existing_files[0]["id"]
+    request = service.files().get_media(fileId=file_id)
+
+    with open(DB_PATH, "wb") as file:
+        downloader = MediaIoBaseDownload(file, request)
+        done = False
+        while not done:
+            _, done = downloader.next_chunk()
+    st.info("🔄 Banco de dados baixado do Google Drive.")
+
 def upload_database():
     """Envia ou atualiza o banco de dados no Google Drive na pasta definida."""
-    # Verifica se o banco de dados existe antes do upload
     if not os.path.exists(DB_PATH):
         st.error("❌ Erro: O banco de dados não foi encontrado localmente. Nenhum upload foi realizado.")
         return
@@ -174,6 +194,10 @@ custom_style = """
 """
 st.markdown(custom_style, unsafe_allow_html=True)
 
+# Chamada para baixar o banco de dados do Google Drive
+# Essa chamada é feita a cada interação, garantindo que o sistema use a versão mais atual do banco.
+download_database()
+
 # Inicializa as variáveis de estado
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
@@ -192,7 +216,6 @@ if not os.path.exists(DB_PATH):
         new_db_path = os.path.join(os.path.dirname(DB_PATH), "fleet_management_uploaded.db")
         with open(new_db_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
-        # Substituir o banco de dados principal pelo novo
         os.replace(new_db_path, DB_PATH)
         st.sidebar.success("✅ Banco de dados atualizado com sucesso! Reinicie o sistema.")
         st.stop()
@@ -204,7 +227,7 @@ if not os.path.exists(DB_PATH):
 # Fluxo do Sistema
 ############################################
 
-# Se o usuário ainda não estiver autenticado, exibe a tela de login
+# Tela de Login (com o banco de dados já atualizado a partir do Google Drive)
 if not st.session_state["authenticated"]:
     user_info = login_screen()
     if user_info:
@@ -213,22 +236,21 @@ if not st.session_state["authenticated"]:
         st.session_state["user_type"] = user_info["user_type"]
         st.experimental_rerun()
 else:
-    # Menu lateral para usuário autenticado
+    # Após a interação do usuário, atualiza automaticamente o backup no Google Drive.
+    upload_database()
+    
     st.sidebar.title("⚙️ Configuração do Banco de Dados")
     
-    # Upload do banco de dados (disponível na barra lateral)
     st.sidebar.subheader("📤 Enviar um novo banco de dados")
     uploaded_file = st.sidebar.file_uploader("Escolha um arquivo (.db)", type=["db"])
     if uploaded_file is not None:
         new_db_path = os.path.join(os.path.dirname(DB_PATH), "fleet_management_uploaded.db")
         with open(new_db_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
-        # Substituir o banco de dados principal pelo novo
         os.replace(new_db_path, DB_PATH)
         st.sidebar.success("✅ Banco de dados atualizado com sucesso! Reinicie o sistema.")
         st.stop()
 
-    # Botão para salvar (fazer upload) o banco de dados existente no Google Drive
     st.sidebar.subheader("☁️ Backup no Google Drive")
     if st.sidebar.button("Salvar banco de dados na nuvem"):
         upload_database()
@@ -236,7 +258,6 @@ else:
     st.sidebar.write(f"👤 **Usuário:** {st.session_state.get('user_name', 'Desconhecido')}")
     st.sidebar.write(f"🔑 **Permissão:** {st.session_state.get('user_type', 'Desconhecido')}")
 
-    # Exibe botão de download do backup para ADMINs
     if st.session_state.get("user_type") == "ADMIN":
         st.sidebar.subheader("⚙️ Configurações Avançadas")
         with open(DB_PATH, "rb") as file:
@@ -247,7 +268,6 @@ else:
                 mime="application/octet-stream"
             )
 
-    # Define as opções de menu de acordo com o tipo de usuário
     if st.session_state.get("user_type") == "OPE":
         menu_options = ["Gerenciar Perfil", "Novo Checklist", "Novo Abastecimento", "Logout"]
     else:  # ADMIN
@@ -258,7 +278,6 @@ else:
         ]
     menu_option = st.sidebar.radio("🚗 **Menu Principal**", menu_options)
 
-    # Controle das telas de navegação
     if menu_option == "Gerenciar Perfil":
         user_control_screen()
     elif menu_option == "Cadastrar Usuário":
