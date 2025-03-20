@@ -36,7 +36,6 @@ def get_google_drive_service():
     """
     Autentica no Google Drive e retorna um serviço da API.
     """
-    st.write("🔍 Tentando autenticação no Google Drive...")
     credentials_json = None
 
     # Tenta obter credenciais dos segredos do Streamlit (útil na nuvem)
@@ -76,7 +75,7 @@ def get_google_drive_service():
 
     try:
         creds = Credentials.from_service_account_info(credentials_json, scopes=SCOPES)
-        st.success("✅ Autenticado via Conta de Serviço com sucesso!")
+        
         return build("drive", "v3", credentials=creds)
     except Exception as e:
         st.error("❌ Erro ao autenticar no Google Drive: " + str(e))
