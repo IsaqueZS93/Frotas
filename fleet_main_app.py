@@ -23,9 +23,9 @@ SCOPES = [
 
 # Configurações do banco de dados
 from backend.database.db_fleet import create_database, DB_PATH
-DB_FILE_NAME = "fleet_management.db"
+DB_FILE_NAME = "fleet_management.db"  # Nome correto do banco de dados
 
-# Novo ID da pasta para salvar o banco de dados no Google Drive
+# ID da pasta para o banco de dados no Google Drive
 FLEETBD_FOLDER_ID = "1dPaautky1YLzYiH1IOaxgItu_GZSaxcO"
 
 ##########################################
@@ -83,7 +83,7 @@ def get_google_drive_service():
         return None
 
 def download_database():
-    """Baixa o banco de dados do Google Drive e substitui o local."""
+    """Baixa o banco de dados do Google Drive e substitui o arquivo local."""
     service = get_google_drive_service()
     if not service:
         return
@@ -94,7 +94,7 @@ def download_database():
     ).execute().get("files", [])
 
     if not existing_files:
-        st.warning("⚠️ Nenhum backup encontrado no Google Drive. Criando um novo banco local.")
+        st.warning("⚠️ Nenhum backup encontrado no Google Drive. Será criado um novo banco local.")
         return
 
     file_id = existing_files[0]["id"]
@@ -123,7 +123,6 @@ def upload_database():
     }
     media = MediaFileUpload(DB_PATH, resumable=True)
 
-    # Verifica se já existe um arquivo com o mesmo nome na pasta
     existing_files = service.files().list(
         q=f"name='{DB_FILE_NAME}' and '{FLEETBD_FOLDER_ID}' in parents",
         fields="files(id)"
@@ -194,8 +193,7 @@ custom_style = """
 """
 st.markdown(custom_style, unsafe_allow_html=True)
 
-# Chamada para baixar o banco de dados do Google Drive
-# Essa chamada é feita a cada interação, garantindo que o sistema use a versão mais atual do banco.
+# Chamada para baixar o banco de dados do Google Drive na inicialização
 download_database()
 
 # Inicializa as variáveis de estado
@@ -207,7 +205,7 @@ if "user_name" not in st.session_state:
     st.session_state["user_name"] = None
 
 ############################################
-# Verificação do Banco de Dados (Upload caso não seja encontrado)
+# Verificação do Banco de Dados
 ############################################
 if not os.path.exists(DB_PATH):
     st.sidebar.warning("❌ Banco de dados não reconhecido! Faça o upload de um novo banco de dados para prosseguir.")
@@ -236,7 +234,7 @@ if not st.session_state["authenticated"]:
         st.session_state["user_type"] = user_info["user_type"]
         st.experimental_rerun()
 else:
-    # Após a interação do usuário, atualiza automaticamente o backup no Google Drive.
+    # Após cada interação, atualiza automaticamente o backup no Google Drive.
     upload_database()
     
     st.sidebar.title("⚙️ Configuração do Banco de Dados")
