@@ -8,7 +8,7 @@ import re
 
 # 🔹 Função para remover emojis e caracteres não suportados
 def remove_emojis(text):
-    emoji_pattern = re.compile("["
+    emoji_pattern = re.compile("[" 
                                u"\U0001F600-\U0001F64F"  # Emojis
                                u"\U0001F300-\U0001F5FF"  # Símbolos e pictogramas
                                u"\U0001F680-\U0001F6FF"  # Transporte e mapas
