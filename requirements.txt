@@ -9,4 +9,4 @@ langchain
 langchain-groq
 fpdf
 google-api-python-client
-
+fpdf2
