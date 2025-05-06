@@ -32,7 +32,7 @@ def get_google_drive_service():
     - Se não encontrar, solicita ao usuário que cole manualmente o JSON de autenticação.
     - Converte e valida o JSON antes de autenticar.
     """
-    st.write("🔍 Tentando autenticação no Google Drive...")
+    
 
     credentials_json = None
 
