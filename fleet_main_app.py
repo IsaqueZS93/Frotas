@@ -1,303 +1,288 @@
-import Imports_fleet  # 🔹 Garante que todos os caminhos do projeto sejam adicionados corretamente
+# C:\Users\Novaes Engenharia\frotas\fleet_main_app.py
+# ------------------------------------------------------------------------------
+#  Gestão de Frotas – App principal (Streamlit)
+#  • Sincronização segura com Google Drive
+#  • Criação automática do banco se nenhum backup existir
+#  • Upload para o Drive só quando realmente houve alteração (`db_dirty`)
+# ------------------------------------------------------------------------------
+
+import Imports_fleet  # 🔹 garante que os caminhos do projeto sejam adicionados
 import streamlit as st
 import os
-import io
 import json
 import sqlite3
 from dotenv import load_dotenv
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 
-# Carregar variáveis de ambiente (útil para ambientes locais)
+# ------------------------------------------------------------------------------
+# 1. Configurações básicas
+# ------------------------------------------------------------------------------
 load_dotenv()
+st.set_page_config(page_title="Gestão de Frotas", layout="wide")
+st.set_option("client.showErrorDetails", True)          # vê erros completos
 
-# Definição dos escopos de acesso atualizados (gerenciar, ler e acessar metadados)
 SCOPES = [
     "https://www.googleapis.com/auth/drive.file",
     "https://www.googleapis.com/auth/drive.readonly",
-    "https://www.googleapis.com/auth/drive.metadata.readonly"
+    "https://www.googleapis.com/auth/drive.metadata.readonly",
 ]
 
-# Configurações do banco de dados
-from backend.database.db_fleet import create_database, DB_PATH
-DB_FILE_NAME = "fleet_management.db"  # Nome correto do banco de dados
-
-# ID da pasta para o banco de dados no Google Drive
+from backend.database.db_fleet import create_database, DB_PATH      # noqa: E402
+DB_FILE_NAME = "fleet_management.db"
 FLEETBD_FOLDER_ID = "1dPaautky1YLzYiH1IOaxgItu_GZSaxcO"
 
-##########################################
-# FUNÇÕES DE INTEGRAÇÃO COM O GOOGLE DRIVE #
-##########################################
-
+# ------------------------------------------------------------------------------
+# 2. Serviço Google Drive
+# ------------------------------------------------------------------------------
 def get_google_drive_service():
-    """
-    Autentica no Google Drive e retorna um serviço da API.
-    """
+    """Autentica e devolve serviço Drive v3 (ou None em falha)."""
     credentials_json = None
-
-    # Tenta obter credenciais dos segredos do Streamlit (útil na nuvem)
     if "GOOGLE_CREDENTIALS" in st.secrets:
         try:
-            credentials_json = {
-                "type": st.secrets["GOOGLE_CREDENTIALS"]["type"],
-                "project_id": st.secrets["GOOGLE_CREDENTIALS"]["project_id"],
-                "private_key_id": st.secrets["GOOGLE_CREDENTIALS"]["private_key_id"],
-                "private_key": st.secrets["GOOGLE_CREDENTIALS"]["private_key"].replace("\\n", "\n"),
-                "client_email": st.secrets["GOOGLE_CREDENTIALS"]["client_email"],
-                "client_id": st.secrets["GOOGLE_CREDENTIALS"]["client_id"],
-                "auth_uri": st.secrets["GOOGLE_CREDENTIALS"]["auth_uri"],
-                "token_uri": st.secrets["GOOGLE_CREDENTIALS"]["token_uri"],
-                "auth_provider_x509_cert_url": st.secrets["GOOGLE_CREDENTIALS"]["auth_provider_x509_cert_url"],
-                "client_x509_cert_url": st.secrets["GOOGLE_CREDENTIALS"]["client_x509_cert_url"],
-                "universe_domain": st.secrets["GOOGLE_CREDENTIALS"]["universe_domain"],
-            }
+            cred = st.secrets["GOOGLE_CREDENTIALS"]
+            credentials_json = {k: cred[k] for k in cred.keys()}
+            credentials_json["private_key"] = credentials_json["private_key"].replace(
+                "\\n", "\n"
+            )
         except Exception as e:
-            st.error("⚠️ Erro ao carregar credenciais do secrets.toml: " + str(e))
+            st.error(f"⚠️ Erro nos secrets: {e}")
 
-    # Se não encontrar, solicita o JSON manualmente
     if not credentials_json:
-        json_input = st.text_area("📥 Cole seu JSON de autenticação do Google Drive aqui:", height=250)
+        json_txt = st.text_area("📥 Cole o JSON de serviço do Drive:", height=250)
         if st.button("🔑 Autenticar"):
             try:
-                credentials_json = json.loads(json_input)
-                credentials_json["private_key"] = credentials_json["private_key"].replace("\\n", "\n")
-                st.success("✅ JSON válido! Prosseguindo com a autenticação.")
+                credentials_json = json.loads(json_txt)
+                credentials_json["private_key"] = credentials_json["private_key"].replace(
+                    "\\n", "\n"
+                )
+                st.success("✅ JSON validado!")
             except Exception as e:
-                st.error("❌ JSON inválido. Verifique o formato: " + str(e))
+                st.error(f"❌ JSON inválido: {e}")
                 return None
 
     if not credentials_json:
-        st.error("❌ Nenhuma credencial válida encontrada. Autenticação abortada.")
         return None
 
     try:
         creds = Credentials.from_service_account_info(credentials_json, scopes=SCOPES)
-        
         return build("drive", "v3", credentials=creds)
     except Exception as e:
-        st.error("❌ Erro ao autenticar no Google Drive: " + str(e))
+        st.error(f"❌ Autenticação Drive falhou: {e}")
         return None
 
-def download_database():
-    """Baixa o banco de dados do Google Drive e substitui o arquivo local."""
+
+# ------------------------------------------------------------------------------
+# 3. Sincronização: download / upload
+# ------------------------------------------------------------------------------
+def download_database_if_exists():
+    """Baixa backup se houver no Drive. Salva em arquivo temporário, move depois."""
     service = get_google_drive_service()
     if not service:
         return
 
-    existing_files = service.files().list(
-        q=f"name='{DB_FILE_NAME}' and '{FLEETBD_FOLDER_ID}' in parents",
-        fields="files(id)"
-    ).execute().get("files", [])
-
-    if not existing_files:
-        st.warning("⚠️ Nenhum backup encontrado no Google Drive. Será criado um novo banco local.")
+    query = f"name='{DB_FILE_NAME}' and '{FLEETBD_FOLDER_ID}' in parents"
+    files = service.files().list(q=query, fields="files(id,size)").execute().get("files", [])
+    if not files:
+        st.warning("⚠️ Backup não encontrado no Drive – criaremos DB local vazio.")
         return
 
-    file_id = existing_files[0]["id"]
+    file_id = files[0]["id"]
     request = service.files().get_media(fileId=file_id)
 
-    with open(DB_PATH, "wb") as file:
-        downloader = MediaIoBaseDownload(file, request)
+    tmp_path = DB_PATH + ".tmp"
+    with open(tmp_path, "wb") as f_tmp:
+        downloader = MediaIoBaseDownload(f_tmp, request)
         done = False
         while not done:
             _, done = downloader.next_chunk()
-    st.info("🔄 Banco de dados baixado do Google Drive.")
+
+    os.replace(tmp_path, DB_PATH)          # troca atômica
+    st.info("🔄 Banco de dados baixado do Drive.")
+
 
 def upload_database():
-    """Envia ou atualiza o banco de dados no Google Drive na pasta definida."""
+    """Faz upload/atualização do banco para o Drive."""
     if not os.path.exists(DB_PATH):
-        st.error("❌ Erro: O banco de dados não foi encontrado localmente. Nenhum upload foi realizado.")
+        st.error("❌ Banco local não encontrado – upload abortado.")
         return
 
     service = get_google_drive_service()
     if not service:
         return
 
-    file_metadata = {
-        "name": DB_FILE_NAME,
-        "parents": [FLEETBD_FOLDER_ID]
-    }
+    q = f"name='{DB_FILE_NAME}' and '{FLEETBD_FOLDER_ID}' in parents"
+    files = service.files().list(q=q, fields="files(id)").execute().get("files", [])
+
     media = MediaFileUpload(DB_PATH, resumable=True)
-
-    existing_files = service.files().list(
-        q=f"name='{DB_FILE_NAME}' and '{FLEETBD_FOLDER_ID}' in parents",
-        fields="files(id)"
-    ).execute().get("files", [])
-
     try:
-        if existing_files:
-            file_id = existing_files[0]["id"]
-            service.files().update(fileId=file_id, media_body=media).execute()
-            st.sidebar.success("✅ Banco de dados atualizado no Google Drive!")
+        if files:
+            service.files().update(fileId=files[0]["id"], media_body=media).execute()
+            st.sidebar.success("☁️ Backup atualizado no Drive!")
         else:
-            service.files().create(body=file_metadata, media_body=media).execute()
-            st.sidebar.success("✅ Banco de dados salvo no Google Drive pela primeira vez!")
+            meta = {"name": DB_FILE_NAME, "parents": [FLEETBD_FOLDER_ID]}
+            service.files().create(body=meta, media_body=media).execute()
+            st.sidebar.success("☁️ Backup criado no Drive!")
     except Exception as e:
-        st.sidebar.error("❌ Erro ao enviar o banco de dados: " + str(e))
+        st.sidebar.error(f"❌ Falha no upload: {e}")
 
-##########################################
-# FIM DAS FUNÇÕES DE INTEGRAÇÃO COM O DRIVE #
-##########################################
 
-# IMPORTAÇÃO DAS TELAS DO SISTEMA
-from frontend.screens.Screen_Login import login_screen
-from frontend.screens.Screen_User_Create import user_create_screen
-from frontend.screens.Screen_User_List_Edit import user_list_edit_screen
-from frontend.screens.Screen_User_Control import user_control_screen
-from frontend.screens.Screen_Veiculo_Create import veiculo_create_screen
-from frontend.screens.Screen_Veiculo_List_Edit import veiculo_list_edit_screen
-from frontend.screens.Screen_Checklists_Create import checklist_create_screen
-from frontend.screens.Screen_Checklist_lists import checklist_list_screen
-from frontend.screens.Screen_Abastecimento_Create import abastecimento_create_screen
-from frontend.screens.Screen_Abastecimento_List_Edit import abastecimento_list_edit_screen
-from frontend.screens.Screen_Dash import screen_dash
-from frontend.screens.Screen_IA import screen_ia  # ✅ Importa a tela do chatbot IA
-
-# Configuração inicial do Streamlit com tema azul claro
-st.set_page_config(page_title="Gestão de Frotas", layout="wide")
-
-# Estilização personalizada para um tema azul claro
-custom_style = """
-    <style>
-    body {
-        background-color: #E3F2FD;
-        color: #0D47A1;
-        font-family: Arial, sans-serif;
-    }
-    .stButton>button {
-        background-color: #42A5F5;
-        color: white;
-        border-radius: 10px;
-        padding: 10px;
-        width: 100%;
-        box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
-    }
-    .stButton>button:hover {
-        background-color: #1976D2;
-    }
-    input, textarea, select {
-        background-color: #FFFFFF;
-        border-radius: 8px;
-        padding: 8px;
-        border: 1px solid #90CAF9;
-        box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
-    }
-    label, h1, h2, h3, h4, h5, h6 {
-        font-weight: bold;
-    }
-    </style>
-"""
-st.markdown(custom_style, unsafe_allow_html=True)
-
-# Chamada para baixar o banco de dados do Google Drive na inicialização
-download_database()
-
-# Inicializa as variáveis de estado
-if "authenticated" not in st.session_state:
-    st.session_state["authenticated"] = False
-if "user_type" not in st.session_state:
-    st.session_state["user_type"] = None
-if "user_name" not in st.session_state:
-    st.session_state["user_name"] = None
-
-############################################
-# Verificação do Banco de Dados
-############################################
+# ------------------------------------------------------------------------------
+# 4. Garantia de existência do banco local
+# ------------------------------------------------------------------------------
+download_database_if_exists()
 if not os.path.exists(DB_PATH):
-    st.sidebar.warning("❌ Banco de dados não reconhecido! Faça o upload de um novo banco de dados para prosseguir.")
-    uploaded_file = st.sidebar.file_uploader("Escolha um arquivo (.db)", type=["db"])
-    if uploaded_file is not None:
-        new_db_path = os.path.join(os.path.dirname(DB_PATH), "fleet_management_uploaded.db")
-        with open(new_db_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
-        os.replace(new_db_path, DB_PATH)
-        st.sidebar.success("✅ Banco de dados atualizado com sucesso! Reinicie o sistema.")
-        st.stop()
-    else:
-        st.info("Por favor, faça o upload do banco de dados para prosseguir.")
-        st.stop()
+    create_database()                       # cria vazio (todas as tabelas)
 
-############################################
-# Fluxo do Sistema
-############################################
+# ------------------------------------------------------------------------------
+# 5. Estado da sessão
+# ------------------------------------------------------------------------------
+st.session_state.setdefault("authenticated", False)
+st.session_state.setdefault("user_type", None)
+st.session_state.setdefault("user_name", None)
+st.session_state.setdefault("db_dirty", False)   # ← marca se houve escrita
 
-# Tela de Login (com o banco de dados já atualizado a partir do Google Drive)
+# ------------------------------------------------------------------------------
+# 6. Estilo
+# ------------------------------------------------------------------------------
+st.markdown(
+    """
+    <style>
+      body {background:#E3F2FD;color:#0D47A1;font-family:Arial;}
+      .stButton>button {background:#42A5F5;color:white;border-radius:10px;padding:10px;width:100%;}
+      .stButton>button:hover {background:#1976D2;}
+      input,textarea,select {background:#FFF;border-radius:8px;padding:8px;border:1px solid #90CAF9;}
+      label,h1,h2,h3,h4,h5,h6 {font-weight:bold;}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# ------------------------------------------------------------------------------
+# 7. Upload manual se DB ainda não existe (caso raro)
+# ------------------------------------------------------------------------------
+if not os.path.exists(DB_PATH):
+    st.sidebar.error("❌ Banco não reconhecido! Faça upload do .db e reinicie.")
+    up = st.sidebar.file_uploader("Escolha um .db", type=["db"])
+    if up:
+        path_tmp = DB_PATH + ".uploaded"
+        with open(path_tmp, "wb") as f:
+            f.write(up.getbuffer())
+        os.replace(path_tmp, DB_PATH)
+        st.sidebar.success("✅ Banco substituído – reinicie o app.")
+    st.stop()
+
+# ------------------------------------------------------------------------------
+# 8. Importação das telas (depois do DB existir)
+# ------------------------------------------------------------------------------
+from frontend.screens.Screen_Login import login_screen         # noqa: E402
+from frontend.screens.Screen_User_Create import user_create_screen      # noqa: E402
+from frontend.screens.Screen_User_List_Edit import user_list_edit_screen  # noqa: E402
+from frontend.screens.Screen_User_Control import user_control_screen    # noqa: E402
+from frontend.screens.Screen_Veiculo_Create import veiculo_create_screen  # noqa: E402
+from frontend.screens.Screen_Veiculo_List_Edit import veiculo_list_edit_screen  # noqa: E402
+from frontend.screens.Screen_Checklists_Create import checklist_create_screen    # noqa: E402
+from frontend.screens.Screen_Checklist_lists import checklist_list_screen        # noqa: E402
+from frontend.screens.Screen_Abastecimento_Create import abastecimento_create_screen  # noqa: E402
+from frontend.screens.Screen_Abastecimento_List_Edit import abastecimento_list_edit_screen  # noqa: E402
+from frontend.screens.Screen_Dash import screen_dash            # noqa: E402
+from frontend.screens.Screen_IA import screen_ia                # noqa: E402
+
+# ------------------------------------------------------------------------------
+# 9. Tela de Login
+# ------------------------------------------------------------------------------
 if not st.session_state["authenticated"]:
-    user_info = login_screen()
-    if user_info:
-        st.session_state["authenticated"] = True
-        st.session_state["user_name"] = user_info["user_name"]
-        st.session_state["user_type"] = user_info["user_type"]
+    info = login_screen()
+    if info:
+        st.session_state.update(
+            authenticated=True,
+            user_name=info["user_name"],
+            user_type=info["user_type"],
+        )
         st.experimental_rerun()
-else:
-    # Após cada interação, atualiza automaticamente o backup no Google Drive.
-    upload_database()
-    
-    st.sidebar.title("⚙️ Configuração do Banco de Dados")
-    
-    st.sidebar.subheader("📤 Enviar um novo banco de dados")
-    uploaded_file = st.sidebar.file_uploader("Escolha um arquivo (.db)", type=["db"])
-    if uploaded_file is not None:
-        new_db_path = os.path.join(os.path.dirname(DB_PATH), "fleet_management_uploaded.db")
-        with open(new_db_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
-        os.replace(new_db_path, DB_PATH)
-        st.sidebar.success("✅ Banco de dados atualizado com sucesso! Reinicie o sistema.")
-        st.stop()
 
-    st.sidebar.subheader("☁️ Backup no Google Drive")
-    if st.sidebar.button("Salvar banco de dados na nuvem"):
-        upload_database()
+# ------------------------------------------------------------------------------
+# 10. Menu lateral (usuário autenticado)
+# ------------------------------------------------------------------------------
+st.sidebar.title("☰ Menu")
 
-    st.sidebar.write(f"👤 **Usuário:** {st.session_state.get('user_name', 'Desconhecido')}")
-    st.sidebar.write(f"🔑 **Permissão:** {st.session_state.get('user_type', 'Desconhecido')}")
+if st.session_state["authenticated"]:
+    st.sidebar.write(f"👤 **Usuário:** {st.session_state['user_name']}")
+    st.sidebar.write(f"🔑 **Permissão:** {st.session_state['user_type']}")
 
-    if st.session_state.get("user_type") == "ADMIN":
-        st.sidebar.subheader("⚙️ Configurações Avançadas")
-        with open(DB_PATH, "rb") as file:
+    if st.session_state["user_type"] == "OPE":
+        options = ["Gerenciar Perfil", "Novo Checklist", "Novo Abastecimento", "Logout"]
+    else:
+        options = [
+            "Gerenciar Perfil", "Cadastrar Usuário", "Gerenciar Usuários",
+            "Cadastrar Veículo", "Gerenciar Veículos", "Novo Checklist",
+            "Gerenciar Checklists", "Novo Abastecimento", "Gerenciar Abastecimentos",
+            "Dashboards", "Chatbot IA 🤖", "Logout",
+        ]
+        # backup manual para ADMIN
+        st.sidebar.subheader("☁️ Backup Drive")
+        if st.sidebar.button("Enviar backup agora"):
+            upload_database()
+
+        # download automático do .db
+        with open(DB_PATH, "rb") as f_db:
             st.sidebar.download_button(
-                label="📥 Baixar Backup do Banco",
-                data=file,
-                file_name="fleet_management.db",
-                mime="application/octet-stream"
+                label="📥 Baixar backup .db",
+                data=f_db,
+                file_name=DB_FILE_NAME,
+                mime="application/octet-stream",
             )
 
-    if st.session_state.get("user_type") == "OPE":
-        menu_options = ["Gerenciar Perfil", "Novo Checklist", "Novo Abastecimento", "Logout"]
-    else:  # ADMIN
-        menu_options = [
-            "Gerenciar Perfil", "Cadastrar Usuário", "Gerenciar Usuários", "Cadastrar Veículo",
-            "Gerenciar Veículos", "Novo Checklist", "Gerenciar Checklists", "Novo Abastecimento",
-            "Gerenciar Abastecimentos", "Dashboards", "Chatbot IA 🤖", "Logout"
-        ]
-    menu_option = st.sidebar.radio("🚗 **Menu Principal**", menu_options)
+    # navegação
+    choice = st.sidebar.radio("Escolha:", options, key="menu_option")
 
-    if menu_option == "Gerenciar Perfil":
+    # ----------------------------------------------------------------------------
+    # 10a. Roteamento de telas
+    # ----------------------------------------------------------------------------
+    if choice == "Gerenciar Perfil":
         user_control_screen()
-    elif menu_option == "Cadastrar Usuário":
-        user_create_screen()
-    elif menu_option == "Gerenciar Usuários" and st.session_state["user_type"] == "ADMIN":
+    elif choice == "Cadastrar Usuário":
+        user_create_screen(); st.session_state["db_dirty"] = True
+    elif choice == "Gerenciar Usuários":
         user_list_edit_screen()
-    elif menu_option == "Cadastrar Veículo" and st.session_state["user_type"] == "ADMIN":
-        veiculo_create_screen()
-    elif menu_option == "Gerenciar Veículos" and st.session_state["user_type"] == "ADMIN":
+    elif choice == "Cadastrar Veículo":
+        veiculo_create_screen(); st.session_state["db_dirty"] = True
+    elif choice == "Gerenciar Veículos":
         veiculo_list_edit_screen()
-    elif menu_option == "Novo Checklist":
-        checklist_create_screen()
-    elif menu_option == "Gerenciar Checklists" and st.session_state["user_type"] == "ADMIN":
+    elif choice == "Novo Checklist":
+        checklist_create_screen(); st.session_state["db_dirty"] = True
+    elif choice == "Gerenciar Checklists":
         checklist_list_screen()
-    elif menu_option == "Novo Abastecimento":
-        abastecimento_create_screen()
-    elif menu_option == "Gerenciar Abastecimentos" and st.session_state["user_type"] == "ADMIN":
+    elif choice == "Novo Abastecimento":
+        abastecimento_create_screen(); st.session_state["db_dirty"] = True
+    elif choice == "Gerenciar Abastecimentos":
         abastecimento_list_edit_screen()
-    elif menu_option == "Dashboards" and st.session_state["user_type"] == "ADMIN":
+    elif choice == "Dashboards":
         screen_dash()
-    elif menu_option == "Chatbot IA 🤖":
+    elif choice == "Chatbot IA 🤖":
         screen_ia()
-    elif menu_option == "Logout":
+    elif choice == "Logout":
         st.session_state.clear()
-        st.success("✅ Você saiu do sistema! Redirecionando... 🔄")
-        st.rerun()
+        st.success("✅ Saiu do sistema!")
+        st.experimental_rerun()
+
+    # ----------------------------------------------------------------------------
+    # 10b. Upload manual de arquivo .db (qualquer usuário autenticado)
+    # ----------------------------------------------------------------------------
+    st.sidebar.subheader("📤 Substituir banco local (.db)")
+    up_file = st.sidebar.file_uploader("Escolha um .db", type=["db"])
+    if up_file:
+        tmp = DB_PATH + ".user_up"
+        with open(tmp, "wb") as f:
+            f.write(up_file.getbuffer())
+        os.replace(tmp, DB_PATH)
+        st.sidebar.success("✅ Banco substituído – reinicie o app.")
+        st.stop()
+
+    # ----------------------------------------------------------------------------
+    # 10c. Sincronização automática se houve alterações
+    # ----------------------------------------------------------------------------
+    if st.session_state["db_dirty"]:
+        upload_database()
+        st.session_state["db_dirty"] = False
