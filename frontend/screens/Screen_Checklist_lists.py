@@ -1,8 +1,7 @@
 # C:\Users\Novaes Engenharia\frotas\frontend\screens\Screen_Checklist_lists.py
 # ---------------------------------------------------------------------------
-#  Lista, exibe e gerencia check-lists – versão corrigida
-#  • remove uso de parâmetro inexistente parent_id
-#  • usa busca genérica via search_files para localizar subpastas
+#  Lista, exibe e gerencia check-lists – compatível com Service_Google_Drive
+#  • Usa search_files() e list_files_in_folder() conforme assinatura real
 # ---------------------------------------------------------------------------
 
 import streamlit as st
@@ -20,7 +19,9 @@ from backend.db_models.DB_Models_Veiculo import get_all_veiculos
 from backend.db_models.DB_Models_User import get_user_by_id
 
 # 🔹 Serviços Google Drive
-from backend.services.Service_Google_Drive import search_files, get_folder_id_by_name
+from backend.services.Service_Google_Drive import (
+    search_files, get_folder_id_by_name, list_files_in_folder
+)
 
 # Pasta “Checklists” no Drive
 PASTA_CHECKLISTS_ID = "10T2UHhc-wQXWRDj-Kc5F_dAHUM5F1TrK"
@@ -30,32 +31,31 @@ PASTA_CHECKLISTS_ID = "10T2UHhc-wQXWRDj-Kc5F_dAHUM5F1TrK"
 # Funções auxiliares para Google Drive
 # ---------------------------------------------------------------------------
 def _find_folder_inside(parent_id: str, folder_name: str):
-    """Retorna o ID da subpasta `folder_name` dentro de `parent_id` (ou None)."""
+    """
+    Retorna o ID de uma subpasta de nome exato dentro de parent_id.
+    Utiliza search_files() sem parâmetro extra.
+    """
     query = (
-        f"mimeType='application/vnd.google-apps.folder' and "
-        f"'{parent_id}' in parents and name = '{folder_name}' and trashed=false"
+        "mimeType='application/vnd.google-apps.folder' and "
+        f"'{parent_id}' in parents and name='{folder_name}' and trashed=false"
     )
-    resultado = search_files(query, fields="files(id,name)")
+    resultado = search_files(query)  # retorna lista de dicts com id e name
     return resultado[0]["id"] if resultado else None
 
 
 def localizar_pasta_imagens(placa: str, checklist_id: int, data_hora: str):
     """
-    Localiza no Drive a pasta que contém as imagens do checklist.
-    Estrutura esperada:
-      Checklists/
-        └── <PLACA>/
-              └── <ID>  ou  <DD-MM-AAAA> (subpasta opcional)
+    Localiza a pasta das imagens:
+      Checklists/ <placa>/  ( opcional : <id>  ou  <dd-mm-aaaa> )
     """
-    # 1) pasta da placa dentro da pasta-mãe
     pasta_placa_id = _find_folder_inside(PASTA_CHECKLISTS_ID, placa)
     if not pasta_placa_id:
         return None
 
-    # 2) tenta subpasta com ID do checklist
+    # Subpasta por ID
     subpasta_id = _find_folder_inside(pasta_placa_id, str(checklist_id))
 
-    # 3) se não existir, tenta subpasta pela data
+    # Subpasta por data se não achar ID
     if not subpasta_id:
         data_fmt = datetime.strptime(data_hora, "%d/%m/%Y %H:%M:%S").strftime("%d-%m-%Y")
         subpasta_id = _find_folder_inside(pasta_placa_id, data_fmt)
@@ -111,7 +111,7 @@ def checklist_list_screen():
     for ck in checklists:
         titulo = f"📌 ID: {ck['id']} | Placa: {ck['placa']} | Data: {ck['data_hora']}"
         with st.expander(titulo):
-            # -- Usuario (Row → dict) ---------------------------------------
+            # ---- Usuário ----------------------------------------------------
             row = get_user_by_id(ck["id_usuario"])
             user = dict(row) if row else {}
             nome_usuario = user.get("nome_completo", "Usuário desconhecido")
@@ -130,7 +130,7 @@ def checklist_list_screen():
                 st.write(f"🦺 **Itens Segurança:** {'✅' if ck['itens_seguranca_ok'] else '❌'}")
                 st.write(f"📝 **Observações:** {ck['observacoes'] or '—'}")
 
-            # -- Imagens ------------------------------------------------------
+            # ---- Imagens ----------------------------------------------------
             with col_dir:
                 st.subheader("📸 Fotos")
                 if not ck["fotos"]:
@@ -141,21 +141,23 @@ def checklist_list_screen():
                     if not pasta:
                         st.info("Pasta não encontrada no Drive.")
                     else:
-                        q = (f"mimeType contains 'image/' and "
-                             f"'{pasta}' in parents and trashed=false")
-                        arquivos = search_files(q, fields="files(id,name,webViewLink)")
-                        imagens = [a for a in arquivos if a["name"] in nomes]
+                        q = (
+                            f"mimeType contains 'image/' and '{pasta}' in parents "
+                            f"and trashed=false"
+                        )
+                        arquivos = search_files(q)
+                        imgs = [a for a in arquivos if a["name"] in nomes]
 
-                        if not imagens:
+                        if not imgs:
                             st.info("Imagens não localizadas.")
                         else:
-                            for i, img in enumerate(imagens, 1):
+                            for i, img in enumerate(imgs, 1):
                                 st.markdown(
                                     f"<a href='{img['webViewLink']}' target='_blank'>🖼️ Imagem {i}</a>",
                                     unsafe_allow_html=True,
                                 )
 
-            # -- Exclusão -----------------------------------------------------
+            # ---- Exclusão ---------------------------------------------------
             if st.button(f"🗑️ Excluir Checklist {ck['id']}", key=f"del_{ck['id']}"):
                 delete_checklist(ck["id"])
                 st.success(f"Checklist {ck['id']} excluído!")
