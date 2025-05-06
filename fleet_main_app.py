@@ -33,6 +33,9 @@ from backend.database.db_fleet import create_database, DB_PATH      # noqa: E402
 DB_FILE_NAME = "fleet_management.db"
 FLEETBD_FOLDER_ID = "1dPaautky1YLzYiH1IOaxgItu_GZSaxcO"
 
+# 🔧 FIX: garante que o diretório onde o banco reside exista
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+
 # ------------------------------------------------------------------------------
 # 2. Serviço Google Drive
 # ------------------------------------------------------------------------------
@@ -92,14 +95,32 @@ def download_database_if_exists():
     request = service.files().get_media(fileId=file_id)
 
     tmp_path = DB_PATH + ".tmp"
-    with open(tmp_path, "wb") as f_tmp:
-        downloader = MediaIoBaseDownload(f_tmp, request)
-        done = False
-        while not done:
-            _, done = downloader.next_chunk()
+    # 🔧 FIX: garante o diretório do arquivo temporário
+    os.makedirs(os.path.dirname(tmp_path), exist_ok=True)
 
-    os.replace(tmp_path, DB_PATH)          # troca atômica
-    st.info("🔄 Banco de dados baixado do Drive.")
+    try:
+        with open(tmp_path, "wb") as f_tmp:
+            downloader = MediaIoBaseDownload(f_tmp, request)
+            done = False
+            while not done:
+                _, done = downloader.next_chunk()
+    except Exception as e:
+        st.error(f"❌ Erro ao gravar arquivo temporário: {e}")
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        return
+
+    # 🔧 FIX: substitui o DB somente se o .tmp existir
+    if os.path.exists(tmp_path):
+        try:
+            os.replace(tmp_path, DB_PATH)          # troca atômica
+            st.info("🔄 Banco de dados baixado do Drive.")
+        except Exception as e:
+            st.error(f"❌ Falha ao substituir o banco: {e}")
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+    else:
+        st.error("❌ Arquivo temporário não foi criado; download falhou.")
 
 
 def upload_database():
@@ -220,12 +241,10 @@ if st.session_state["authenticated"]:
             "Gerenciar Checklists", "Novo Abastecimento", "Gerenciar Abastecimentos",
             "Dashboards", "Chatbot IA 🤖", "Logout",
         ]
-        # backup manual para ADMIN
         st.sidebar.subheader("☁️ Backup Drive")
         if st.sidebar.button("Enviar backup agora"):
             upload_database()
 
-        # download automático do .db
         with open(DB_PATH, "rb") as f_db:
             st.sidebar.download_button(
                 label="📥 Baixar backup .db",
@@ -234,12 +253,8 @@ if st.session_state["authenticated"]:
                 mime="application/octet-stream",
             )
 
-    # navegação
     choice = st.sidebar.radio("Escolha:", options, key="menu_option")
 
-    # ----------------------------------------------------------------------------
-    # 10a. Roteamento de telas
-    # ----------------------------------------------------------------------------
     if choice == "Gerenciar Perfil":
         user_control_screen()
     elif choice == "Cadastrar Usuário":
@@ -267,9 +282,6 @@ if st.session_state["authenticated"]:
         st.success("✅ Saiu do sistema!")
         st.rerun()
 
-    # ----------------------------------------------------------------------------
-    # 10b. Upload manual de arquivo .db (qualquer usuário autenticado)
-    # ----------------------------------------------------------------------------
     st.sidebar.subheader("📤 Substituir banco local (.db)")
     up_file = st.sidebar.file_uploader("Escolha um .db", type=["db"])
     if up_file:
@@ -280,9 +292,6 @@ if st.session_state["authenticated"]:
         st.sidebar.success("✅ Banco substituído – reinicie o app.")
         st.stop()
 
-    # ----------------------------------------------------------------------------
-    # 10c. Sincronização automática se houve alterações
-    # ----------------------------------------------------------------------------
     if st.session_state["db_dirty"]:
         upload_database()
         st.session_state["db_dirty"] = False
