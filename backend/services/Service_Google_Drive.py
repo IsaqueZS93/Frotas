@@ -75,7 +75,7 @@ def get_google_drive_service():
     # 🔹 Criar credenciais do Google Drive com as informações obtidas, passando os escopos atualizados
     try:
         creds = Credentials.from_service_account_info(credentials_json, scopes=SCOPES)
-        st.success("✅ Autenticado via Conta de Serviço com sucesso!")
+        
         return build("drive", "v3", credentials=creds)
     except Exception as e:
         st.error("❌ Erro ao autenticar no Google Drive: " + str(e))
