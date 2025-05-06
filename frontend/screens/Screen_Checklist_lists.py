@@ -1,9 +1,6 @@
 # C:\Users\Novaes Engenharia\frotas\frontend\screens\Screen_Checklist_lists.py
 # ---------------------------------------------------------------------------
-#  Lista, exibe e gerencia check-lists  — versão estável
-#  • Compatível com Service_Google_Drive (sem parâmetro fields)
-#  • Corrige datas sem segundos (11/03/2025 19:42 ↔ dd-mm-aaaa)
-#  • Informa claramente quando não há imagens relacionadas
+#  Lista, exibe e gerencia check-lists (exibe TODAS as fotos como links)
 # ---------------------------------------------------------------------------
 
 import streamlit as st
@@ -21,48 +18,36 @@ from backend.db_models.DB_Models_Veiculo import get_all_veiculos
 from backend.db_models.DB_Models_User import get_user_by_id
 
 # 🔹 Serviços Google Drive
-from backend.services.Service_Google_Drive import (
-    search_files, get_folder_id_by_name, list_files_in_folder
-)
+from backend.services.Service_Google_Drive import search_files
 
 # Pasta “Checklists” no Drive
 PASTA_CHECKLISTS_ID = "10T2UHhc-wQXWRDj-Kc5F_dAHUM5F1TrK"
 
 
 # ---------------------------------------------------------------------------
-# Funções auxiliares para Google Drive
+# Funções auxiliares
 # ---------------------------------------------------------------------------
 def _find_folder_inside(parent_id: str, folder_name: str):
-    """
-    Retorna o ID da subpasta 'folder_name' dentro de 'parent_id'.
-    """
     query = (
         "mimeType='application/vnd.google-apps.folder' and "
         f"'{parent_id}' in parents and name='{folder_name}' and trashed=false"
     )
-    resultado = search_files(query)
-    return resultado[0]["id"] if resultado else None
+    res = search_files(query)
+    return res[0]["id"] if res else None
 
 
 def localizar_pasta_imagens(placa: str, checklist_id: int, data_hora: str):
-    """
-    Localiza a pasta que contém as fotos do checklist:
-      Checklists/<placa>/[<id> | <dd-mm-aaaa>]
-    """
-    # 1) pasta da placa
-    pasta_placa_id = _find_folder_inside(PASTA_CHECKLISTS_ID, placa)
-    if not pasta_placa_id:
+    """Retorna ID da pasta que contém as fotos do checklist."""
+    pasta_placa = _find_folder_inside(PASTA_CHECKLISTS_ID, placa)
+    if not pasta_placa:
         return None
 
-    # 2) subpasta com ID
-    subpasta_id = _find_folder_inside(pasta_placa_id, str(checklist_id))
+    sub_id = _find_folder_inside(pasta_placa, str(checklist_id))
+    if not sub_id:
+        data_fmt = data_hora.split(" ")[0].replace("/", "-")  # dd-mm-aaaa
+        sub_id = _find_folder_inside(pasta_placa, data_fmt)
 
-    # 3) subpasta com data dd-mm-aaaa
-    if not subpasta_id:
-        data_fmt = data_hora.split(" ")[0].replace("/", "-")  # suporta 'dd/mm/aaaa hh:mm' ou hh:mm:ss
-        subpasta_id = _find_folder_inside(pasta_placa_id, data_fmt)
-
-    return subpasta_id or pasta_placa_id
+    return sub_id or pasta_placa
 
 
 # ---------------------------------------------------------------------------
@@ -71,25 +56,22 @@ def localizar_pasta_imagens(placa: str, checklist_id: int, data_hora: str):
 def checklist_list_screen():
     st.title("📋 Listagem e Gerenciamento de Checklists")
 
-    # --- Autenticação / permissão ------------------------------------------
-    if "user_id" not in st.session_state:
-        st.error("Você precisa estar logado para acessar esta tela.")
-        return
-    if st.session_state["user_type"] != "ADMIN":
-        st.error("Você não tem permissão para acessar esta tela.")
+    # --- Autorização ---
+    if "user_id" not in st.session_state or st.session_state.get("user_type") != "ADMIN":
+        st.error("Acesso restrito.")
         return
 
-    # --- Filtros -----------------------------------------------------------
+    # --- Filtros ---
     st.subheader("🔍 Filtros de Busca")
-    col1, col2, col3 = st.columns(3)
-    with col1:
+    c1, c2, c3 = st.columns(3)
+    with c1:
         placa_filter = st.selectbox(
             "📌 Filtrar por Placa",
             ["Todas"] + [v["placa"] for v in get_all_veiculos()]
         )
-    with col2:
+    with c2:
         data_filter = st.date_input("📅 Filtrar por Data", value=None)
-    with col3:
+    with c3:
         usuario_filter = st.text_input("👤 Filtrar por ID Usuário ou Nome")
 
     checklists = (
@@ -100,28 +82,26 @@ def checklist_list_screen():
         dia = data_filter.strftime("%d/%m/%Y")
         checklists = [c for c in checklists if c["data_hora"].startswith(dia)]
     if usuario_filter:
-        uf = usuario_filter.lower()
-        checklists = [c for c in checklists if uf in str(c["id_usuario"]).lower()]
+        f = usuario_filter.lower()
+        checklists = [c for c in checklists if f in str(c["id_usuario"]).lower()]
 
-    # --- Exibição ----------------------------------------------------------
+    # --- Lista ---
     st.subheader("📑 Checklists Registrados")
     if not checklists:
         st.info("Nenhum checklist encontrado.")
         return
 
     for ck in checklists:
-        header = f"📌 ID: {ck['id']} | Placa: {ck['placa']} | Data: {ck['data_hora']}"
-        with st.expander(header):
-            row = get_user_by_id(ck["id_usuario"])
-            user = dict(row) if row else {}
-            nome_usuario = user.get("nome_completo", "Usuário desconhecido")
+        cabe = f"📌 ID {ck['id']} | Placa {ck['placa']} | {ck['data_hora']}"
+        with st.expander(cabe):
+            usr = dict(get_user_by_id(ck["id_usuario"]) or {})
+            nome_usuario = usr.get("nome_completo", "Desconhecido")
 
-            col_esq, col_dir = st.columns([2, 1])
-            with col_esq:
+            esq, dir = st.columns([2, 1])
+            with esq:
                 st.write(f"👤 **Usuário:** {nome_usuario} (ID {ck['id_usuario']})")
                 st.write(f"🕒 **Data/Hora:** {ck['data_hora']}")
-                st.write(f"📌 **Placa:** {ck['placa']}")
-                st.write(f"📊 **KM Atual / Informado:** {ck['km_atual']} km / {ck['km_informado']} km")
+                st.write(f"📊 **KM Atual / Informado:** {ck['km_atual']} / {ck['km_informado']} km")
                 st.write(f"🛞 **Pneus:** {'✅' if ck['pneus_ok'] else '❌'}")
                 st.write(f"💡 **Faróis/Setas:** {'✅' if ck['farois_setas_ok'] else '❌'}")
                 st.write(f"🛑 **Freios:** {'✅' if ck['freios_ok'] else '❌'}")
@@ -130,38 +110,30 @@ def checklist_list_screen():
                 st.write(f"🦺 **Itens Segurança:** {'✅' if ck['itens_seguranca_ok'] else '❌'}")
                 st.write(f"📝 **Observações:** {ck['observacoes'] or '—'}")
 
-            # --- Imagens ----------------------------------------------------
-            with col_dir:
+            # --- Fotos (todos os arquivos) ---
+            with dir:
                 st.subheader("📸 Fotos")
-                if not ck["fotos"]:
-                    st.info("Nenhuma imagem relacionada.")
+                pasta = localizar_pasta_imagens(ck["placa"], ck["id"], ck["data_hora"])
+                if not pasta:
+                    st.info("Pasta de imagens não encontrada no Drive.")
                 else:
-                    nomes_esperados = [os.path.basename(p) for p in ck["fotos"].split("|")]
-                    pasta_imgs = localizar_pasta_imagens(ck["placa"], ck["id"], ck["data_hora"])
-
-                    if not pasta_imgs:
-                        st.info("Pasta de imagens não encontrada no Drive.")
+                    q = f"mimeType contains 'image/' and '{pasta}' in parents and trashed=false"
+                    fotos = search_files(q)
+                    if not fotos:
+                        st.info("Nenhuma imagem na pasta.")
                     else:
-                        q = f"mimeType contains 'image/' and '{pasta_imgs}' in parents and trashed=false"
-                        arquivos = search_files(q)
-                        correspondentes = [a for a in arquivos if a["name"] in nomes_esperados]
+                        for i, foto in enumerate(fotos, 1):
+                            st.markdown(
+                                f"<a href='{foto['webViewLink']}' target='_blank'>🖼️ Imagem {i} — {foto['name']}</a>",
+                                unsafe_allow_html=True
+                            )
 
-                        if not correspondentes:
-                            st.info("Nenhuma imagem correspondente encontrada.")
-                        else:
-                            for i, img in enumerate(correspondentes, 1):
-                                st.markdown(
-                                    f"<a href='{img['webViewLink']}' target='_blank'>🖼️ Imagem {i}</a>",
-                                    unsafe_allow_html=True
-                                )
-
-            # --- Exclusão ---------------------------------------------------
+            # --- Botão excluir ---
             if st.button(f"🗑️ Excluir Checklist {ck['id']}", key=f"del_{ck['id']}"):
                 delete_checklist(ck["id"])
-                st.success(f"Checklist {ck['id']} excluído!")
+                st.success("Checklist excluído.")
                 st.rerun()
 
 
-# Execução stand-alone
 if __name__ == "__main__":
     checklist_list_screen()
