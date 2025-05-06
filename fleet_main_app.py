@@ -200,7 +200,7 @@ if not st.session_state["authenticated"]:
             user_name=info["user_name"],
             user_type=info["user_type"],
         )
-        st.experimental_rerun()
+        st.rerun()
 
 # ------------------------------------------------------------------------------
 # 10. Menu lateral (usuário autenticado)
@@ -265,7 +265,7 @@ if st.session_state["authenticated"]:
     elif choice == "Logout":
         st.session_state.clear()
         st.success("✅ Saiu do sistema!")
-        st.experimental_rerun()
+        st.rerun()
 
     # ----------------------------------------------------------------------------
     # 10b. Upload manual de arquivo .db (qualquer usuário autenticado)
