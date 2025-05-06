@@ -1,52 +1,63 @@
 # C:\Users\Novaes Engenharia\frotas\frontend\screens\Screen_Checklist_lists.py
 # ---------------------------------------------------------------------------
-#  Lista, exibe e gerencia check-lists (exibe TODAS as fotos como links)
+#  Lista, exibe e gerencia check-lists
+#  • Busca todas as fotos cujas “chaves” (ID ou nome) estão salvas no campo
+#    ck["fotos"]  — exibe link individual para cada imagem
 # ---------------------------------------------------------------------------
 
 import streamlit as st
 import sys, os
-from datetime import datetime
 
-# 🔹 Caminho base do projeto
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-# 🔹 Modelos
+# 🔹 Models
 from backend.db_models.DB_Models_checklists import (
     get_all_checklists, get_checklists_by_placa, delete_checklist
 )
 from backend.db_models.DB_Models_Veiculo import get_all_veiculos
 from backend.db_models.DB_Models_User import get_user_by_id
 
-# 🔹 Serviços Google Drive
-from backend.services.Service_Google_Drive import search_files
+# 🔹 Google Drive helpers
+from backend.services.Service_Google_Drive import (
+    search_files, get_google_drive_service
+)
 
-# Pasta “Checklists” no Drive
 PASTA_CHECKLISTS_ID = "10T2UHhc-wQXWRDj-Kc5F_dAHUM5F1TrK"
 
 
 # ---------------------------------------------------------------------------
-# Funções auxiliares
+# Funções utilitárias
 # ---------------------------------------------------------------------------
 def _find_folder_inside(parent_id: str, folder_name: str):
-    query = (
+    q = (
         "mimeType='application/vnd.google-apps.folder' and "
         f"'{parent_id}' in parents and name='{folder_name}' and trashed=false"
     )
-    res = search_files(query)
+    res = search_files(q)
     return res[0]["id"] if res else None
 
 
+def _file_metadata_by_id(file_id: str):
+    """Tenta obter metadados (id, name, webViewLink) via ID; retorna None se falhar."""
+    try:
+        srv = get_google_drive_service()
+        if not srv:
+            return None
+        return srv.files().get(
+            fileId=file_id,
+            fields="id,name,webViewLink,trashed"
+        ).execute()
+    except Exception:
+        return None
+
+
 def localizar_pasta_imagens(placa: str, checklist_id: int, data_hora: str):
-    """Retorna ID da pasta que contém as fotos do checklist."""
     pasta_placa = _find_folder_inside(PASTA_CHECKLISTS_ID, placa)
     if not pasta_placa:
         return None
-
     sub_id = _find_folder_inside(pasta_placa, str(checklist_id))
     if not sub_id:
-        data_fmt = data_hora.split(" ")[0].replace("/", "-")  # dd-mm-aaaa
-        sub_id = _find_folder_inside(pasta_placa, data_fmt)
-
+        sub_id = _find_folder_inside(pasta_placa, data_hora.split(" ")[0].replace("/", "-"))
     return sub_id or pasta_placa
 
 
@@ -56,23 +67,22 @@ def localizar_pasta_imagens(placa: str, checklist_id: int, data_hora: str):
 def checklist_list_screen():
     st.title("📋 Listagem e Gerenciamento de Checklists")
 
-    # --- Autorização ---
+    # --- segurança ---
     if "user_id" not in st.session_state or st.session_state.get("user_type") != "ADMIN":
         st.error("Acesso restrito.")
         return
 
-    # --- Filtros ---
-    st.subheader("🔍 Filtros de Busca")
+    # --- filtros ---
     c1, c2, c3 = st.columns(3)
     with c1:
         placa_filter = st.selectbox(
-            "📌 Filtrar por Placa",
+            "Filtrar Placa",
             ["Todas"] + [v["placa"] for v in get_all_veiculos()]
         )
     with c2:
-        data_filter = st.date_input("📅 Filtrar por Data", value=None)
+        data_filter = st.date_input("Filtrar Data", value=None)
     with c3:
-        usuario_filter = st.text_input("👤 Filtrar por ID Usuário ou Nome")
+        usuario_filter = st.text_input("Filtrar Usuário (ID ou Nome)")
 
     checklists = (
         get_checklists_by_placa(placa_filter) if placa_filter != "Todas"
@@ -85,51 +95,53 @@ def checklist_list_screen():
         f = usuario_filter.lower()
         checklists = [c for c in checklists if f in str(c["id_usuario"]).lower()]
 
-    # --- Lista ---
-    st.subheader("📑 Checklists Registrados")
+    st.subheader("📑 Resultados")
     if not checklists:
         st.info("Nenhum checklist encontrado.")
         return
 
     for ck in checklists:
-        cabe = f"📌 ID {ck['id']} | Placa {ck['placa']} | {ck['data_hora']}"
-        with st.expander(cabe):
-            usr = dict(get_user_by_id(ck["id_usuario"]) or {})
-            nome_usuario = usr.get("nome_completo", "Desconhecido")
+        with st.expander(f"ID {ck['id']} | {ck['placa']} | {ck['data_hora']}"):
+            user = dict(get_user_by_id(ck["id_usuario"]) or {})
+            st.write(f"👤 **Usuário:** {user.get('nome_completo','Desconhecido')} (ID {ck['id_usuario']})")
+            st.write(f"🕒 **Data/Hora:** {ck['data_hora']}")
 
-            esq, dir = st.columns([2, 1])
-            with esq:
-                st.write(f"👤 **Usuário:** {nome_usuario} (ID {ck['id_usuario']})")
-                st.write(f"🕒 **Data/Hora:** {ck['data_hora']}")
-                st.write(f"📊 **KM Atual / Informado:** {ck['km_atual']} / {ck['km_informado']} km")
-                st.write(f"🛞 **Pneus:** {'✅' if ck['pneus_ok'] else '❌'}")
-                st.write(f"💡 **Faróis/Setas:** {'✅' if ck['farois_setas_ok'] else '❌'}")
-                st.write(f"🛑 **Freios:** {'✅' if ck['freios_ok'] else '❌'}")
-                st.write(f"🛢️ **Óleo:** {'✅' if ck['oleo_ok'] else '❌'}")
-                st.write(f"🚗 **Vidros/Retrovisores:** {'✅' if ck['vidros_retrovisores_ok'] else '❌'}")
-                st.write(f"🦺 **Itens Segurança:** {'✅' if ck['itens_seguranca_ok'] else '❌'}")
-                st.write(f"📝 **Observações:** {ck['observacoes'] or '—'}")
+            # --------------------  Fotos  --------------------
+            st.subheader("📸 Fotos")
+            if not ck["fotos"]:
+                st.info("Nenhuma chave de foto armazenada.")
+            else:
+                chaves = [p.strip() for p in ck["fotos"].split("|") if p.strip()]
+                pasta_imgs = localizar_pasta_imagens(ck["placa"], ck["id"], ck["data_hora"])
 
-            # --- Fotos (todos os arquivos) ---
-            with dir:
-                st.subheader("📸 Fotos")
-                pasta = localizar_pasta_imagens(ck["placa"], ck["id"], ck["data_hora"])
-                if not pasta:
-                    st.info("Pasta de imagens não encontrada no Drive.")
-                else:
-                    q = f"mimeType contains 'image/' and '{pasta}' in parents and trashed=false"
-                    fotos = search_files(q)
-                    if not fotos:
-                        st.info("Nenhuma imagem na pasta.")
+                for idx, chave in enumerate(chaves, 1):
+                    meta = None
+
+                    # 1) Tenta tratar a chave como ID diretamente
+                    if len(chave) >= 25:  # IDs do Drive costumam ter 25+ chars
+                        meta = _file_metadata_by_id(chave)
+
+                    # 2) Se não for ID ou não achou, trata como NOME dentro da pasta
+                    if not meta and pasta_imgs:
+                        q = (
+                            f"name='{chave}' and "
+                            f"'{pasta_imgs}' in parents and trashed=false"
+                        )
+                        res = search_files(q)
+                        if res:
+                            meta = res[0]
+
+                    # 3) Feedback ao usuário
+                    if meta and not meta.get("trashed", False):
+                        st.markdown(
+                            f"<a href='{meta['webViewLink']}' target='_blank'>🖼️ Foto {idx} — {meta['name']}</a>",
+                            unsafe_allow_html=True
+                        )
                     else:
-                        for i, foto in enumerate(fotos, 1):
-                            st.markdown(
-                                f"<a href='{foto['webViewLink']}' target='_blank'>🖼️ Imagem {i} — {foto['name']}</a>",
-                                unsafe_allow_html=True
-                            )
+                        st.warning(f"🔍 Foto '{chave}' não encontrada no Drive.")
 
-            # --- Botão excluir ---
-            if st.button(f"🗑️ Excluir Checklist {ck['id']}", key=f"del_{ck['id']}"):
+            # --------------------  Excluir  -------------------
+            if st.button(f"Excluir Checklist {ck['id']}", key=f"del_{ck['id']}"):
                 delete_checklist(ck["id"])
                 st.success("Checklist excluído.")
                 st.rerun()
