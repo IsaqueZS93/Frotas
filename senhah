@@ -1,0 +1,9 @@
+import bcrypt
+
+# Nova senha correta
+nova_senha = "N0v43s2025"
+
+# Gerar um hash bcrypt seguro
+senha_hash = bcrypt.hashpw(nova_senha.encode(), bcrypt.gensalt()).decode()
+
+print(senha_hash)  # Copie esse hash gerado

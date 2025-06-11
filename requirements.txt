@@ -1,0 +1,27 @@
+# 🚀 Interface Web
+streamlit
+
+# 🔒 Segurança e Hash de Senha
+bcrypt
+
+# 📊 Manipulação de Dados e Banco de Dados
+
+pandas  # Manipulação de dados em DataFrames
+
+# 🖼️ Gráficos e Visualização
+matplotlib  # Geração de gráficos
+
+# 🛠️ Manipulação de Dados e Requisições
+requests  # Requisições HTTP
+
+# 📊 Integração com Google Drive
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+google-auth-oauthlib
+
+# 📄 Geração de Relatórios e Exportação para PDF
+fpdf  # Geração de relatórios em PDF
+
+# 📦 Carregamento de Variáveis de Ambiente
+python-dotenv
